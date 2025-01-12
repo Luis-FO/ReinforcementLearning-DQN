@@ -3,17 +3,27 @@ import torch.nn as nn
 import torch.optim as optim
 import random
 import math
+import gymnasium as gym
 from ReplayMem import ReplayMemory, Transition
 
 from DQN import DQN
 
 class Agent():
-    def __init__(self, input_size, output_size, env, device= 'cuda', lr = 0.001, memory_capacity=10000, batch_size=128, gamma=0.99):
+    def __init__(self, env_name, device= 'cuda', lr = 0.001, memory_capacity=10000, batch_size=128, gamma=0.99):
+
+        self.env_name = env_name    
+        self.env = gym.make(env_name)
+
+     
+        obs, info = self.env.reset()
+        input_size = len(obs)
+        output_size = self.env.action_space.n
+
         self.policy_net = DQN(input_size, output_size).to(device=device)
         self.target_net = DQN(input_size, output_size).to(device=device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
-        
-        self.env = env
+ 
+
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=lr, amsgrad=True)
         self.criterion = nn.SmoothL1Loss()
         self.memory = ReplayMemory(memory_capacity)
@@ -24,7 +34,7 @@ class Agent():
         self.EPS_DECAY = 1000
         self.device = device
 
-        self.gamma = 0.99
+        self.gamma = gamma
         self.batch_size = batch_size
 
     def select_action(self, obs):
@@ -38,6 +48,41 @@ class Agent():
             action = torch.tensor([[self.env.action_space.sample()]], device=self.device)
         return action
     
+    def train(self, num_episodes, tau, show_train = (False, 500)):
+        for i in range(num_episodes):
+            if show_train[0] and i>show_train[1]:
+                self.env = gym.make(self.env_name, render_mode="human")
+            done = False
+            obs, info = self.env.reset()
+            obs = torch.tensor(obs, device=self.device).unsqueeze(0)
+            print(i)
+            while not done:
+                
+                action = self.select_action(obs)
+                next_obs, reward, terminate, truncate, info = self.env.step(action.item())
+                
+                reward = torch.tensor([reward], device=self.device)
+                done = terminate or truncate
+
+                if terminate:
+                    next_obs = None
+                else:
+                    next_obs = torch.tensor(next_obs, device=self.device).unsqueeze(0)
+
+                self.memory.push(obs, action, next_obs, reward)
+
+
+                obs = next_obs
+                self.optimize_model()
+
+                target_net_state_dict = self.target_net.state_dict()
+                policy_net_state_dict = self.policy_net.state_dict()
+
+                for key in policy_net_state_dict:
+
+                    target_net_state_dict[key] = policy_net_state_dict[key]*tau + target_net_state_dict[key]*(1-tau)
+
+
     def optimize_model(self):
         if len(self.memory) < self.batch_size :
             return
@@ -69,7 +114,7 @@ class Agent():
         loss.backward()
         self.optimizer.step()
 
-    def save_polycy_net(self):
+    def save_policy_net(self):
         torch.save(self.policy_net.state_dict(), "./policy_net.pt")
 
 
