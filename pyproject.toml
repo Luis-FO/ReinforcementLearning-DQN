@@ -1,18 +1,13 @@
-[tool.poetry]
+[project]
 name = "reinforcementlearning-dqn"
 version = "0.1.0"
-description = ""
-authors = ["Luis-FO <luisfernandophsc@gmail.com>"]
-license = "MIT License"
+description = "Add your description here"
 readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "matplotlib>=3.10.7",
+    "torch>=2.8.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-torch = "^2.5.1"
-gym = "^0.26.2"
-gymnasium = {extras = ["classic-control"], version = "^1.0.0"}
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[[tool.uv.index]]
+url = "https://download.pytorch.org/whl/cu128Copied!"

@@ -4,9 +4,9 @@ import torch.optim as optim
 import random
 import math
 import gymnasium as gym
-from ReplayMem import ReplayMemory, Transition
+from replay_memory import ReplayMemory, Transition
 
-from DQN import DQN
+from dqn_model import DQN
 
 class Agent():
     def __init__(self, env_name, device= 'cuda', lr = 0.001, memory_capacity=10000, batch_size=128, gamma=0.99):
@@ -22,7 +22,7 @@ class Agent():
         self.policy_net = DQN(input_size, output_size).to(device=device)
         self.target_net = DQN(input_size, output_size).to(device=device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
- 
+        self.target_net.eval()
 
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=lr, amsgrad=True)
         self.criterion = nn.SmoothL1Loss()
@@ -40,13 +40,15 @@ class Agent():
     def select_action(self, obs):
         val = random.random()
         eps_threshold = self.EPS_END + (self.EPS_START - self.EPS_END)*math.exp(-1. * self.steps / self.EPS_DECAY)
+        # print(eps_threshold)
         self.steps+=1
         if val>eps_threshold:
             with torch.no_grad():
                 action = self.policy_net(obs).max(1).indices.view(1, 1)
         else:
-            action = torch.tensor([[self.env.action_space.sample()]], device=self.device)
+            action = torch.tensor([[random.randrange(self.env.action_space.n)]], device=self.device, dtype=torch.long)
         return action
+    
     
     def train(self, num_episodes, tau, show_train = (False, 500)):
         for i in range(num_episodes):
@@ -82,7 +84,8 @@ class Agent():
 
                     target_net_state_dict[key] = policy_net_state_dict[key]*tau + target_net_state_dict[key]*(1-tau)
 
-
+                self.target_net.load_state_dict(target_net_state_dict)
+                
     def optimize_model(self):
         if len(self.memory) < self.batch_size :
             return
@@ -116,7 +119,11 @@ class Agent():
 
     def save_policy_net(self):
         torch.save(self.policy_net.state_dict(), "./policy_net.pt")
-
+    
+    def load_model(self, path: str):
+        """Carrega o estado da policy network."""
+        self.policy_net.load_state_dict(torch.load(path, map_location=self.device))
+        self.target_net.load_state_dict(self.policy_net.state_dict()) # Sincroniza a target net
 
 if __name__ == "__main__":
     import gymnasium as gym
