@@ -1,68 +1,78 @@
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import random
 import math
 import gymnasium as gym
 from replay_memory import ReplayMemory, Transition
+from agent import Agent
 
 from dqn_model import DQN
 
-class Agent():
-    def __init__(self, env_name, device= 'cuda', lr = 0.001, memory_capacity=10000, batch_size=128, gamma=0.99):
+class DQNTrainer():
 
-        self.env_name = env_name    
+    def __init__(self, env_name, agent, policy_net, target_net, optimizer, criterion, memory_capacity=10000, device= 'cuda',  batch_size=128, gamma=0.99, tau = 0.005, eps_start = 0.9, eps_end=0.05, eps_decay=1000):
+
+        self.env_name = env_name
         self.env = gym.make(env_name)
 
-     
-        obs, info = self.env.reset()
-        input_size = len(obs)
-        output_size = self.env.action_space.n
+        self.agent = agent
+        self.policy_net = policy_net
+        self.target_net = target_net
 
-        self.policy_net = DQN(input_size, output_size).to(device=device)
-        self.target_net = DQN(input_size, output_size).to(device=device)
-        self.target_net.load_state_dict(self.policy_net.state_dict())
-        self.target_net.eval()
-
-        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=lr, amsgrad=True)
-        self.criterion = nn.SmoothL1Loss()
+        self.optimizer = optimizer
+        self.criterion = criterion
         self.memory = ReplayMemory(memory_capacity)
 
-        self.steps = 0  # Training steps
+        self.device = device
+        self.gamma = gamma # Fator de desconto
+        self.tau = tau  # Taxa de atualização da target_net
+        self.batch_size = batch_size
+
         self.EPS_START = 0.9
         self.EPS_END = 0.05
         self.EPS_DECAY = 1000
-        self.device = device
-
-        self.gamma = gamma
-        self.batch_size = batch_size
-
-    def select_action(self, obs):
-        val = random.random()
-        eps_threshold = self.EPS_END + (self.EPS_START - self.EPS_END)*math.exp(-1. * self.steps / self.EPS_DECAY)
-        # print(eps_threshold)
-        self.steps+=1
-        if val>eps_threshold:
-            with torch.no_grad():
-                action = self.policy_net(obs).max(1).indices.view(1, 1)
-        else:
-            action = torch.tensor([[random.randrange(self.env.action_space.n)]], device=self.device, dtype=torch.long)
-        return action
+        
+        self.steps = 0 
     
-    
-    def train(self, num_episodes, tau, show_train = (False, 500)):
+    def get_epsilon(self):
+        print(math.exp(-1. * self.steps / self.EPS_DECAY))
+        return self.EPS_END + (self.EPS_START - self.EPS_END) * \
+               math.exp(-1. * self.steps / self.EPS_DECAY)
+
+    def update_target_net(self):
+        """
+        soft update.
+        θ_target = τ * θ_policy + (1 - τ) * θ_target
+        """
+        target_net_state_dict = self.target_net.state_dict()
+        policy_net_state_dict = self.policy_net.state_dict()
+
+        for key in policy_net_state_dict:
+            target_net_state_dict[key] = policy_net_state_dict[key] * self.tau + \
+                                         target_net_state_dict[key] * (1 - self.tau)
+        
+        self.target_net.load_state_dict(target_net_state_dict)
+
+
+    def train(self, num_episodes, show_train_after = -1):
         for i in range(num_episodes):
-            if show_train[0] and i>show_train[1]:
+            if show_train_after >= 0 and i >= show_train_after:
+                self.env.close()
                 self.env = gym.make(self.env_name, render_mode="human")
-            done = False
+                show_train_after = -1 
+            
             obs, info = self.env.reset()
             obs = torch.tensor(obs, device=self.device).unsqueeze(0)
-            print(i)
+            
+            done = False
+            total_reward = 0
             while not done:
-                
-                action = self.select_action(obs)
+
+                epsilon = self.get_epsilon()
+                action = self.agent.select_action(obs, epsilon)
+                self.steps+=1
+
                 next_obs, reward, terminate, truncate, info = self.env.step(action.item())
-                
+                total_reward += reward
+
                 reward = torch.tensor([reward], device=self.device)
                 done = terminate or truncate
 
@@ -73,19 +83,13 @@ class Agent():
 
                 self.memory.push(obs, action, next_obs, reward)
 
-
                 obs = next_obs
                 self.optimize_model()
 
-                target_net_state_dict = self.target_net.state_dict()
-                policy_net_state_dict = self.policy_net.state_dict()
+                self.update_target_net()
+            print(f"Episódio {i}: Recompensa Total = {total_reward}, Epsilon = {epsilon:.4f}")
+        self.env.close()
 
-                for key in policy_net_state_dict:
-
-                    target_net_state_dict[key] = policy_net_state_dict[key]*tau + target_net_state_dict[key]*(1-tau)
-
-                self.target_net.load_state_dict(target_net_state_dict)
-                
     def optimize_model(self):
         if len(self.memory) < self.batch_size :
             return
@@ -117,13 +121,14 @@ class Agent():
         loss.backward()
         self.optimizer.step()
 
-    def save_policy_net(self):
-        torch.save(self.policy_net.state_dict(), "./policy_net.pt")
+    def save_policy_net(self, path="./policy_net.pt"):
+        torch.save(self.policy_net.state_dict(), path)
+        print(f"Modelo salvo em {path}")
     
-    def load_model(self, path: str):
-        """Carrega o estado da policy network."""
+    def load_pretmodel(self, path: str):
         self.policy_net.load_state_dict(torch.load(path, map_location=self.device))
-        self.target_net.load_state_dict(self.policy_net.state_dict()) # Sincroniza a target net
+        self.target_net.load_state_dict(self.policy_net.state_dict()) 
+        
 
 if __name__ == "__main__":
     import gymnasium as gym
