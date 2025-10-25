@@ -28,12 +28,11 @@ class DQNTrainer():
 
         self.EPS_START = 0.9
         self.EPS_END = 0.05
-        self.EPS_DECAY = 1000
+        self.EPS_DECAY = 10000
         
         self.steps = 0 
     
     def get_epsilon(self):
-        print(math.exp(-1. * self.steps / self.EPS_DECAY))
         return self.EPS_END + (self.EPS_START - self.EPS_END) * \
                math.exp(-1. * self.steps / self.EPS_DECAY)
 
