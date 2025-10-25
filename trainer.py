@@ -26,9 +26,9 @@ class DQNTrainer():
         self.tau = tau  # Taxa de atualização da target_net
         self.batch_size = batch_size
 
-        self.EPS_START = 0.9
-        self.EPS_END = 0.05
-        self.EPS_DECAY = 10000
+        self.EPS_START = eps_start
+        self.EPS_END = eps_end
+        self.EPS_DECAY = eps_decay
         
         self.steps = 0 
     
