@@ -3,9 +3,12 @@ name = "reinforcementlearning-dqn"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 dependencies = [
+    "gymnasium[box2d]>=1.2.2",
     "matplotlib>=3.10.7",
+    "optuna>=4.6.0",
+    "swig>=4.4.0",
     "torch>=2.8.0",
 ]
 

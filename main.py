@@ -12,15 +12,15 @@ from replay_memory import ReplayMemory
 
 ENV_NAME = 'LunarLander-v3' 
 LR = 0.0001
-MEMORY_CAPACITY = 10000
-BATCH_SIZE = 128
+MEMORY_CAPACITY = 100000
+BATCH_SIZE = 256
 GAMMA = 0.99
 TAU = 0.005
 NUM_EPISODES = 1000
 
 EPS_START = 0.9
-EPS_END = 0.05
-EPS_DECAY = 1000
+EPS_END = 0.005
+EPS_DECAY = 10000
 
 device = torch.device(
     "cuda" if torch.cuda.is_available() else
@@ -58,6 +58,7 @@ trainer = DQNTrainer(env_name=ENV_NAME,
                      eps_end=EPS_END,
                      eps_decay=EPS_DECAY)
 
+# trainer.load_pretmodel("./lunar_lander_dqn_interrompido.pt")
 
 try:
     trainer.train(num_episodes=NUM_EPISODES, show_train_after=100) 
