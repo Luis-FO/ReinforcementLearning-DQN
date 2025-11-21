@@ -3,7 +3,6 @@ model/*
 DQN_acrobot/__pycache__/*
 /*pt
 __pycache__
-arqtest/*
 main2.py
 main3.py
 dqn_lunarlander.db
