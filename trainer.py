@@ -63,8 +63,9 @@ class DQNTrainer():
             # Resetando o ambiente no início de cada episódio
             obs, info = self.env.reset()
             # Convertendo a observação para tensor
+
             obs = torch.tensor(obs, device=self.device).unsqueeze(0)
-            
+
             done = False
             total_reward = 0
             # Loop até o episódio terminar
@@ -120,7 +121,7 @@ class DQNTrainer():
             return
         
         # Captura uma amostra de transições da memória de replay
-        samples = self.memory.sample(self.batch_size)
+        state_batch, action_batch, reward_batch, next_states = self.memory.sample(self.batch_size)
         """
         1. *samples desempacota a lista de transições em colunas separadas.
         2. zip(*samples) agrupa os elementos correspondentes de cada transição juntos:
@@ -129,19 +130,14 @@ class DQNTrainer():
         3. Transition(*zip(*samples)) cria uma nova namedtuple Transition onde cada campo contém uma tupla de todos os valores correspondentes:
             Transition(state=(s1, s2, ...), action=(a1, a2, ...), next_state=(s1', s2', ...), reward=(r1, r2, ...))
         """
-        batch = Transition(*zip(*samples))
-        # Concatenar os tensores individuais em um único tensor para cada componente da transição (state, action, next_state, reward)
-        state_batch = torch.cat(batch.state)
-        action_batch = torch.cat(batch.action)
-        reward_batch = torch.cat(batch.reward)
 
         # Filtrar os próximos estados que não são terminais. Porque em estados terminais não há próximo estado.
-        non_final_next_states = torch.cat([s for s in batch.next_state \
+        non_final_next_states = torch.cat([s for s in next_states \
                                                 if s is not None])
         
         # Máscara booleana para identificar quais próximos estados não são terminais
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, \
-                                            batch.next_state)), device=self.device, dtype = torch.bool)
+                                            next_states)), device=self.device, dtype = torch.bool)
 
         # Calcula os valores Q previstos para o estado atual e ação tomada usando a rede de política.
         # É como se estivéssemos consultando a rede para saber "qual é o valor esperado se eu fizer essa ação nesse estado?"
