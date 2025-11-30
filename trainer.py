@@ -1,17 +1,21 @@
 import torch
-import math
 import gymnasium as gym
-from replay_memory import ReplayMemory, Transition
-from agent import Agent
+from gymnasium.wrappers import RecordVideo
+from info_overlay import InfoOverlay
 
+from replay_memory import ReplayMemory
+
+from logtrigger import segmented_limit_trigger
+from agent import Agent
 from dqn_model import DQN
+
 
 class DQNTrainer():
 
-    def __init__(self, env_name, agent, policy_net, target_net, optimizer, criterion, memory_capacity=10000, device= 'cuda',  batch_size=128, gamma=0.99, tau = 0.005, eps_start = 0.9, eps_end=0.05, eps_decay=1000):
+    def __init__(self, env_name, agent, policy_net, target_net, optimizer, criterion, memory_capacity=10000, device= 'cuda',  batch_size=128, gamma=0.99, tau = 0.005, eps_start = 0.9, eps_end=0.05, eps_decay=0.95):
 
         self.env_name = env_name
-        self.env = gym.make(env_name)
+        self.env = gym.make(env_name, render_mode="rgb_array")
 
         self.agent = agent
         self.policy_net = policy_net
@@ -26,15 +30,29 @@ class DQNTrainer():
         self.tau = tau  # Taxa de atualização da target_net
         self.batch_size = batch_size
 
-        self.EPS_START = eps_start
+        self.EPSILON = eps_start
         self.EPS_END = eps_end
         self.EPS_DECAY = eps_decay
         
         self.steps = 0 
     
-    def get_epsilon(self):
-        return self.EPS_END + (self.EPS_START - self.EPS_END) * \
-               math.exp(-1. * self.steps / self.EPS_DECAY)
+    def decay_epsilon(self):
+        self.EPSILON = max(self.EPS_END, self.EPSILON * self.EPS_DECAY)
+        return self.EPSILON
+    
+    def enable_video_recording(self, video_folder="./videos", episode_trigger=segmented_limit_trigger, name_prefix="dqn-video"):
+        """Habilita a gravação de vídeos dos episódios do ambiente.
+        Usa o wrapper RecordVideo do Gymnasium para capturar e salvar vídeos em um diretório especificado.
+        Precisa ser chamado antes do início de cada chamada ao método train().
+        Args:
+            video_folder (str): Diretório onde os vídeos serão salvos.
+            episode_trigger (callable): Função que determina quando gravar um episódio.
+        """
+        self.env.close()
+        self.env = gym.make(self.env_name, render_mode="rgb_array")
+        self.env = InfoOverlay(self.env)
+        self.env = RecordVideo(self.env, video_folder=video_folder, name_prefix=name_prefix, episode_trigger=episode_trigger)
+        print(f"Gravação de vídeo habilitada. Vídeos serão salvos em: {video_folder}")
 
     def update_target_net(self):
         """
@@ -53,9 +71,13 @@ class DQNTrainer():
 
     def train(self, num_episodes, show_train_after = -1):
         episode_rewards = []
+        # Cria o ambiente caso não tenha sido criado ainda (cria sem renderização visual)
+        if not hasattr(self, 'env'):
+            self.env = gym.make(self.env_name, render_mode="rgb_array")
+
         # Training loop
-        for i in range(num_episodes):
-            if show_train_after >= 0 and i >= show_train_after:
+        for episode in range(num_episodes):
+            if show_train_after >= 0 and episode >= show_train_after:
                 self.env.close()
                 self.env = gym.make(self.env_name, render_mode="human")
                 show_train_after = -1 
@@ -72,7 +94,7 @@ class DQNTrainer():
             while not done:
 
                 # Epsilon decai ao longo do tempo. 
-                epsilon = self.get_epsilon()
+                epsilon = self.EPSILON
                 # Selecionar ação com política epsilon-greedy.
                 action = self.agent.select_action(obs, epsilon)
                 self.steps+=1
@@ -96,10 +118,14 @@ class DQNTrainer():
                 obs = next_obs
                 # Chamar o método de otimização do modelo
                 self.optimize_model()
-                # Atualiza a rede alvo usando soft update
+
+                # if episode % 5 == 0:
+                # # Atualiza a rede alvo usando soft update
                 self.update_target_net()
+            
+            self.decay_epsilon()
             episode_rewards.append(total_reward)
-            print(f"Episódio {i}: Recompensa Total = {total_reward}, Epsilon = {epsilon:.4f}")
+            print(f"Episódio {episode}: Recompensa Total = {total_reward}, Epsilon = {epsilon:.4f}")
         self.env.close()
         
         if len(episode_rewards) >= 100:
@@ -111,6 +137,46 @@ class DQNTrainer():
         print(f"Treino concluído. Métrica final (média de 100): {final_metric}")
         return final_metric
 
+    def test_agent(self, num_episodes, render=False):
+        """Função para testar o agente treinado em um número especificado de episódios.
+        O agente executa ações no ambiente sem exploração (epsilon = 0) e a recompensa total por episódio é registrada.
+        No final, a recompensa média sobre todos os episódios de teste é calculada e retornada.
+        """
+        test_env = gym.make(self.env_name, render_mode="human")
+        episode_rewards = []
+        
+        for episode in range(num_episodes):
+            obs, info = test_env.reset()
+            obs = torch.tensor(obs, device=self.device).unsqueeze(0)
+
+            done = False
+            total_reward = 0
+
+            while not done:
+                # Selecionar ação sem exploração (epsilon = 0)
+                action = self.agent.select_action(obs, eps_threshold=0.0)
+
+                # Executar ação no ambiente
+                next_obs, reward, terminate, truncate, info = test_env.step(action.item())
+                total_reward += reward
+                done = terminate or truncate
+
+                # Converter a próxima observação para tensor caso o episódio não tenha terminado
+                if terminate:
+                    next_obs = None
+                else:
+                    next_obs = torch.tensor(next_obs, device=self.device).unsqueeze(0)
+
+                obs = next_obs
+
+            episode_rewards.append(total_reward)
+            print(f"Episódio de Teste {episode}: Recompensa Total = {total_reward}")
+
+        test_env.close()
+        average_reward = sum(episode_rewards) / num_episodes
+        print(f"Média de Recompensa nos Testes: {average_reward}")
+        return average_reward
+        
     def optimize_model(self):
         """Função para otimizar o modelo de rede neural.
         Usa amostras da memória de replay para atualizar os pesos da rede.
@@ -160,6 +226,7 @@ class DQNTrainer():
         self.optimizer.zero_grad()
         # Propaga o erro para calcular os gradientes
         loss.backward()
+        # torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         # Atualiza os pesos da rede neural
         self.optimizer.step()
 
