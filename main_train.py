@@ -67,7 +67,7 @@ trainer = DQNTrainer(env_name=ENV_NAME,
 # trainer.load_pretmodel("./cart_pole_dqn_interrompido.pt")
 
 try:
-    trainer.enable_video_recording(video_folder="./Cart_Pole_V6", episode_trigger=segmented_limit_trigger, name_prefix="cart-pole-dqn_train")
+    trainer.enable_video_recording(video_folder="./Cart_Pole_V6", episode_trigger=segmented_limit_trigger, name_prefix="cart-pole-dqn_train", format_type='stories')
     trainer.train(num_episodes=NUM_EPISODES, show_train_after=-1) 
 
     trainer.save_policy_net("./cart_pole_dqn.pt")

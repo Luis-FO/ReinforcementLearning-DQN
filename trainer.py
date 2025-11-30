@@ -40,7 +40,7 @@ class DQNTrainer():
         self.EPSILON = max(self.EPS_END, self.EPSILON * self.EPS_DECAY)
         return self.EPSILON
     
-    def enable_video_recording(self, video_folder="./videos", episode_trigger=segmented_limit_trigger, name_prefix="dqn-video"):
+    def enable_video_recording(self, video_folder="./videos", episode_trigger=segmented_limit_trigger, **kwargs):
         """Habilita a gravação de vídeos dos episódios do ambiente.
         Usa o wrapper RecordVideo do Gymnasium para capturar e salvar vídeos em um diretório especificado.
         Precisa ser chamado antes do início de cada chamada ao método train().
@@ -49,8 +49,12 @@ class DQNTrainer():
             episode_trigger (callable): Função que determina quando gravar um episódio.
         """
         self.env.close()
+
+        format_type = kwargs.get('format_type', 'feed')
+        name_prefix = kwargs.get('name_prefix', 'dqn_video')
+
         self.env = gym.make(self.env_name, render_mode="rgb_array")
-        self.env = InfoOverlay(self.env)
+        self.env = InfoOverlay(self.env, format_type = format_type)
         self.env = RecordVideo(self.env, video_folder=video_folder, name_prefix=name_prefix, episode_trigger=episode_trigger)
         print(f"Gravação de vídeo habilitada. Vídeos serão salvos em: {video_folder}")
 
