@@ -12,10 +12,10 @@ from dqn_model import DQN
 
 class DQNTrainer():
 
-    def __init__(self, env_name, agent, policy_net, target_net, optimizer, criterion, memory_capacity=10000, device= 'cuda',  batch_size=128, gamma=0.99, tau = 0.005, eps_start = 0.9, eps_end=0.05, eps_decay=0.95):
+    def __init__(self, env_name, env, agent, policy_net, target_net, optimizer, criterion, memory_capacity=10000, device= 'cuda',  batch_size=128, gamma=0.99, tau = 0.005, eps_start = 0.9, eps_end=0.05, eps_decay=0.95):
 
         self.env_name = env_name
-        self.env = gym.make(env_name, render_mode="rgb_array")
+        self.env = env
 
         self.agent = agent
         self.policy_net = policy_net
@@ -40,23 +40,16 @@ class DQNTrainer():
         self.EPSILON = max(self.EPS_END, self.EPSILON * self.EPS_DECAY)
         return self.EPSILON
     
-    def enable_video_recording(self, video_folder="./videos", episode_trigger=segmented_limit_trigger, **kwargs):
-        """Habilita a gravação de vídeos dos episódios do ambiente.
-        Usa o wrapper RecordVideo do Gymnasium para capturar e salvar vídeos em um diretório especificado.
-        Precisa ser chamado antes do início de cada chamada ao método train().
+    def set_env(self, env):
+        """Define um novo ambiente para o treinador.
+        Fecha o ambiente atual antes de definir o novo.
         Args:
-            video_folder (str): Diretório onde os vídeos serão salvos.
-            episode_trigger (callable): Função que determina quando gravar um episódio.
+            env: Novo ambiente Gymnasium a ser usado.
         """
         self.env.close()
+        self.env_name = env.spec.id
+        self.env = env
 
-        format_type = kwargs.get('format_type', 'feed')
-        name_prefix = kwargs.get('name_prefix', 'dqn_video')
-
-        self.env = gym.make(self.env_name, render_mode="rgb_array")
-        self.env = InfoOverlay(self.env, format_type = format_type)
-        self.env = RecordVideo(self.env, video_folder=video_folder, name_prefix=name_prefix, episode_trigger=episode_trigger)
-        print(f"Gravação de vídeo habilitada. Vídeos serão salvos em: {video_folder}")
 
     def update_target_net(self):
         """
@@ -123,8 +116,7 @@ class DQNTrainer():
                 # Chamar o método de otimização do modelo
                 self.optimize_model()
 
-                # if episode % 5 == 0:
-                # # Atualiza a rede alvo usando soft update
+                # Atualizar a rede alvo periodicamente
                 self.update_target_net()
             
             self.decay_epsilon()

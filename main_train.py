@@ -9,18 +9,15 @@ from dqn_model import DQN
 from trainer import DQNTrainer
 from logtrigger import segmented_limit_trigger
 from replay_memory import ReplayMemory
+from gymnasium.wrappers import RecordVideo
+from info_overlay import InfoOverlay
+from mountain_car_reward_wrapper import MountainCarRewardWrapper
 
-"""
-Melhor 'trial': 41
-Melhor Métrica (Recompensa Média): 213.39
-Melhores Hiperparâmetros:
-{'lr': 0.00024501566707817494, 'batch_size': 64, 'gamma': 0.9867111914598459, 'tau': 0.009592709227691799, 'eps_decay': 0.9847127999191941}
-"""
-ENV_NAME = 'CartPole-v1' 
+ENV_NAME = 'MountainCar-v0' 
 LR = 0.0005
 MEMORY_CAPACITY = 100000
 BATCH_SIZE = 64
-GAMMA = 0.99
+GAMMA = 0.95
 TAU = 0.005
 NUM_EPISODES = 1500
 
@@ -49,7 +46,19 @@ criterion = nn.SmoothL1Loss()
 
 agent = Agent(policy_net=policy_net, n_actions = n_actions, device=device)
 
+
+format_type = "stories"  # 'stories', 'feed', 'portrait', or None
+name_prefix = "Mountain-Car-dqn_train"
+
+# Setup environment with InfoOverlay and RecordVideo
+dqn_env = gym.make(ENV_NAME, render_mode="rgb_array")
+# dqn_env.max_episode_steps = 500  # Aumentar o limite de passos por episódio
+dqn_env = InfoOverlay(dqn_env, format_type = format_type)
+dqn_env = RecordVideo(dqn_env, video_folder="./Mountain_Car_2", name_prefix="Mountain-Car-dqn_train_v1", episode_trigger=segmented_limit_trigger)
+# dqn_env = MountainCarRewardWrapper(dqn_env)
+
 trainer = DQNTrainer(env_name=ENV_NAME,
+                     env=dqn_env,
                      agent=agent,
                      policy_net=policy_net,
                      target_net=target_net,
@@ -64,17 +73,17 @@ trainer = DQNTrainer(env_name=ENV_NAME,
                      eps_end=EPS_END,
                      eps_decay=EPS_DECAY)
 
-# trainer.load_pretmodel("./cart_pole_dqn_interrompido.pt")
+# trainer.load_pretmodel("./Mountain_Car_interrompido.pt")
 
 try:
-    trainer.enable_video_recording(video_folder="./Cart_Pole_V6", episode_trigger=segmented_limit_trigger, name_prefix="cart-pole-dqn_train", format_type='stories')
+    
     trainer.train(num_episodes=NUM_EPISODES, show_train_after=-1) 
 
-    trainer.save_policy_net("./cart_pole_dqn.pt")
+    trainer.save_policy_net("./Mountain_Car_dqn.pt")
 
 except KeyboardInterrupt:
     print("\nTreinamento interrompido. Salvando modelo atual")
-    trainer.save_policy_net("./cart_pole_dqn_interrompido.pt")
+    trainer.save_policy_net("./Mountain_Car_interrompido.pt")
 
 
 
