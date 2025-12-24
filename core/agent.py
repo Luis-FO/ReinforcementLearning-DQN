@@ -3,7 +3,7 @@ import random
 from dqn_model import DQN
 
 class Agent():
-    def __init__(self, policy_net, n_actions, device= 'cuda', ):
+    def __init__(self, policy_net, n_actions, device= 'cuda'):
 
         self.policy_net = policy_net
         self.device = device
