@@ -7,6 +7,7 @@ from replay_memory import ReplayMemory
 
 from logtrigger import segmented_limit_trigger
 from agent import Agent
+from dqn_model import DQN
 
 
 class DQNTrainer():

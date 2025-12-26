@@ -20,3 +20,9 @@ dependencies = [
 
 [[tool.uv.index]]
 url = "https://download.pytorch.org/whl/cu128Copied!"
+
+
+[tool.setuptools.packages.find]
+where = ["."]  # Procura na raiz
+include = ["core*"]  # Inclui APENAS o código real
+namespaces = false # Opcional: evita criar namespaces implícitos se não precisar

@@ -3,14 +3,14 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import gymnasium as gym
-
-from agent import Agent
-from dqn_model import DQN
-from trainer import DQNTrainer
-from logtrigger import segmented_limit_trigger
-from replay_memory import ReplayMemory
 from gymnasium.wrappers import RecordVideo
-from info_overlay import InfoOverlay
+
+from core.agent import Agent
+from core.dqn_model import DQN
+from core.trainer import DQNTrainer
+from core.logtrigger import segmented_limit_trigger
+from core.info_overlay import InfoOverlay
+
 from mountain_car_reward_wrapper import MountainCarRewardWrapper
 
 ENV_NAME = 'MountainCar-v0' 
@@ -54,8 +54,8 @@ name_prefix = "Mountain-Car-dqn_train"
 dqn_env = gym.make(ENV_NAME, render_mode="rgb_array")
 # dqn_env.max_episode_steps = 500  # Aumentar o limite de passos por episódio
 dqn_env = InfoOverlay(dqn_env, format_type = format_type)
-dqn_env = RecordVideo(dqn_env, video_folder="./Mountain_Car_2", name_prefix="Mountain-Car-dqn_train_v1", episode_trigger=segmented_limit_trigger)
-# dqn_env = MountainCarRewardWrapper(dqn_env)
+dqn_env = RecordVideo(dqn_env, video_folder="./scenarios/MountainCar/MCtrain-1", name_prefix=name_prefix, episode_trigger=segmented_limit_trigger)
+dqn_env = MountainCarRewardWrapper(dqn_env)
 
 trainer = DQNTrainer(env_name=ENV_NAME,
                      env=dqn_env,
@@ -73,7 +73,6 @@ trainer = DQNTrainer(env_name=ENV_NAME,
                      eps_end=EPS_END,
                      eps_decay=EPS_DECAY)
 
-# trainer.load_pretmodel("./Mountain_Car_interrompido.pt")
 
 try:
     

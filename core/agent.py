@@ -1,6 +1,5 @@
 import torch
 import random
-from dqn_model import DQN
 
 class Agent():
     def __init__(self, policy_net, n_actions, device= 'cuda'):
@@ -22,6 +21,7 @@ class Agent():
 
 
 if __name__ == "__main__":
+    from dqn_model import DQN
     import gymnasium as gym
 
     env = gym.make('Acrobot-v1')
