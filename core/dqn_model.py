@@ -16,6 +16,10 @@ class DQN(nn.Module):
     def forward(self, x):
         return self.net(x)
     
+    @property
+    def output_size(self):
+        return self.net[-1].out_features
+    
 
 if __name__ == "__main__":
 
