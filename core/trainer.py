@@ -1,13 +1,9 @@
 import torch
 import gymnasium as gym
-from gymnasium.wrappers import RecordVideo
-from info_overlay import InfoOverlay
 
-from replay_memory import ReplayMemory
+from core.agent import Agent
+from core.replay_memory import ReplayMemory
 
-from logtrigger import segmented_limit_trigger
-from agent import Agent
-from dqn_model import DQN
 
 
 class DQNTrainer():
@@ -80,16 +76,11 @@ class DQNTrainer():
                 show_train_after = -1 
             
             # Resetando o ambiente no início de cada episódio
-            obs, info = self.env.reset()
-            # Convertendo a observação para tensor
-
-            obs = torch.tensor(obs, device=self.device).unsqueeze(0)
-
+            obs, _ = self.env.reset()
             done = False
             total_reward = 0
             # Loop até o episódio terminar
             while not done:
-
                 # Epsilon decai ao longo do tempo. 
                 epsilon = self.EPSILON
                 # Selecionar ação com política epsilon-greedy.
@@ -97,21 +88,12 @@ class DQNTrainer():
                 self.steps+=1
 
                 # Executar ação no ambiente
-                next_obs, reward, terminate, truncate, info = self.env.step(action.item())
+                next_obs, reward, terminate, truncate, _ = self.env.step(action)
                 total_reward += reward
-                # Convertendo o reward para tensor
-                reward = torch.tensor([reward], device=self.device)
                 done = terminate or truncate
-
-                # Converter a próxima observação para tensor caso o episódio não tenha terminado
-                if terminate:
-                    next_obs = None
-                else:
-                    next_obs = torch.tensor(next_obs, device=self.device).unsqueeze(0)
                 
                 # Armazenar a transição na memória de replay
-                self.memory.push(obs, action, next_obs, reward)
-
+                self.memory.push(obs, action, reward, next_obs, done)
                 obs = next_obs
                 # Chamar o método de otimização do modelo
                 self.optimize_model()
@@ -122,6 +104,7 @@ class DQNTrainer():
             self.decay_epsilon()
             episode_rewards.append(total_reward)
             print(f"Episódio {episode}: Recompensa Total = {total_reward}, Epsilon = {epsilon:.4f}")
+
         self.env.close()
         
         if len(episode_rewards) >= 100:
@@ -183,37 +166,25 @@ class DQNTrainer():
             return
         
         # Captura uma amostra de transições da memória de replay
-        state_batch, action_batch, reward_batch, next_states = self.memory.sample(self.batch_size)
-        """
-        1. *samples desempacota a lista de transições em colunas separadas.
-        2. zip(*samples) agrupa os elementos correspondentes de cada transição juntos:
-            Antes: [(s1, a1, s1', r1), (s2, a2, s2', r2), ...]
-            Depois: [(s1, s2, ...), (a1, a2, ...), (s1', s2', ...), (r1, r2, ...)]
-        3. Transition(*zip(*samples)) cria uma nova namedtuple Transition onde cada campo contém uma tupla de todos os valores correspondentes:
-            Transition(state=(s1, s2, ...), action=(a1, a2, ...), next_state=(s1', s2', ...), reward=(r1, r2, ...))
-        """
+        state_batch, action_batch, reward_batch, next_states, dones = self.memory.sample(self.batch_size)
 
-        # Filtrar os próximos estados que não são terminais. Porque em estados terminais não há próximo estado.
-        non_final_next_states = torch.cat([s for s in next_states \
-                                                if s is not None])
-        
-        # Máscara booleana para identificar quais próximos estados não são terminais
-        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, \
-                                            next_states)), device=self.device, dtype = torch.bool)
 
+        state_batch = torch.FloatTensor(state_batch).to(self.device)
+        action_batch = torch.LongTensor(action_batch).to(self.device)
+        reward_batch = torch.FloatTensor(reward_batch).to(self.device)
+        next_states = torch.FloatTensor(next_states).to(self.device)
+        dones = torch.FloatTensor(dones).to(self.device)
         # Calcula os valores Q previstos para o estado atual e ação tomada usando a rede de política.
         # É como se estivéssemos consultando a rede para saber "qual é o valor esperado se eu fizer essa ação nesse estado?"
-        predicted_values = self.policy_net(state_batch).gather(dim = 1, index = action_batch)
-
-        next_state_values = torch.zeros(self.batch_size , device = self.device)
+        # predicted_values = self.policy_net(state_batch).gather(dim = 1, index = action_batch)
+        predicted_values = self.policy_net(state_batch).gather(1, action_batch.unsqueeze(1))
 
         with torch.no_grad():
             # Calcula os valores Q esperados para os próximos estados não terminais usando a rede alvo.
             # Aqui, estamos perguntando "qual é o melhor valor que eu posso esperar no próximo estado?"
-            next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(dim = 1).values
-        
-        # Calcula os valores Q esperados usando a fórmula do Bellman.  
-        expected_values = next_state_values * self.gamma + reward_batch
+            next_state_values = self.target_net(next_states).max(1)[0]
+            # Calcula os valores Q esperados usando a fórmula do Bellman.  
+            expected_values = reward_batch + (1-dones)* self.gamma * next_state_values
 
         # Calcula a perda entre os valores previstos e esperados
         loss = self.criterion(predicted_values, expected_values.unsqueeze(1))
@@ -225,6 +196,7 @@ class DQNTrainer():
         # torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         # Atualiza os pesos da rede neural
         self.optimizer.step()
+        return loss.item()
 
     def save_policy_net(self, path="./policy_net.pt"):
         torch.save(self.policy_net.state_dict(), path)

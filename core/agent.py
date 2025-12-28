@@ -10,14 +10,15 @@ class Agent():
 
     def select_action(self, obs, eps_threshold = 0):
         
-        val = random.random()   
+        if random.random() < eps_threshold:
+            return random.randrange(self.n_actions)
+            # return torch.tensor([[random.randrange(self.n_actions)]], device=self.device, dtype=torch.long)   
         
-        if val>eps_threshold:
-            with torch.no_grad():
-                action = self.policy_net(obs).max(1).indices.view(1, 1)
-        else:
-            action = torch.tensor([[random.randrange(self.n_actions)]], device=self.device, dtype=torch.long)
-        return action
+        with torch.no_grad():
+            # Converte observation de array para tensor 2D 
+            obs_tensor =  torch.FloatTensor(obs).unsqueeze(0).to(self.device)
+            return self.policy_net(obs_tensor).argmax().item()
+            # return self.policy_net(obs_tensor).max(1).indices.view(1, 1)
 
 
 if __name__ == "__main__":

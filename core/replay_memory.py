@@ -1,26 +1,20 @@
-from collections import namedtuple, deque
+from collections import deque
 from random import sample
 import torch
-Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward', 'done'))
+import numpy as np
+
 
 class ReplayMemory():
     def __init__(self, size):
         self.memory = deque([], maxlen=size)
 
-    def push(self, *args):
-        self.memory.append(Transition(*args))
+    def push(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward, next_state, done))
 
     def sample(self, size):
         samples = sample(self.memory, size)
-        batch = Transition(*zip(*samples))
-        # Usa cat porque os estados, ações, recompensas são tensores
-        states = torch.cat(batch.state)
-        actions = torch.cat(batch.action)
-        rewards = torch.cat(batch.reward)
-        next_states = batch.next_state
-        dones = torch.cat(batch.done)
-        return states, actions, rewards, next_states, dones
+        states, actions, rewards, next_states, dones = zip(*samples)
+        return np.array(states), np.array(actions), np.array(rewards), np.array(next_states), np.array(dones)
     
     def __len__(self):
         return len(self.memory)
