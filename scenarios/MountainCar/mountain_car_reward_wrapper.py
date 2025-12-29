@@ -6,18 +6,18 @@ class MountainCarRewardWrapper(gym.RewardWrapper):
     
     def reward(self, reward):
         # O 'reward' aqui é o original (-1)
-        posicao, velocidade = self.env.unwrapped.state
+        pos, velocity = self.env.unwrapped.state
         
         # Lógica de recompensa baseada na altura
-        nova_recompensa = reward + abs(posicao - (-0.5))
+        new_reward = reward + abs(pos - (-0.5))
         
         # Penaliza se ficar parado (velocidade muito baixa) para forçar movimento
-        if abs(velocidade) < 0.001:
-            nova_recompensa -= 0.1
+        if abs(velocity) < 0.001:
+            new_reward -= 0.1
             
-        return nova_recompensa
+        return new_reward
 
 if __name__ == "__main__":
 
     env = gym.make('MountainCar-v0')
-    env = MountainCarRewardWrapper(env) 
+    env = MountainCarRewardWrapper(env)
