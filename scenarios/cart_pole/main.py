@@ -72,10 +72,10 @@ trainer = Trainer(env=dqn_env, agent=agent)
 try:
     
     trainer.train(num_episodes=NUM_EPISODES)
-    agent.save_policy_net(f"{BASE_DIR}/model/CartPole_dqn.pt")
+    agent.save(f"{BASE_DIR}/model/CartPole_dqn.pt")
 
 except KeyboardInterrupt:
     print("\nTreinamento interrompido. Salvando modelo atual")
-    agent.save_policy_net(f"{BASE_DIR}/model/CartPole_interrompido.pt")
+    agent.save(f"{BASE_DIR}/model/CartPole_interrompido.pt")
 
 

@@ -1,48 +1,67 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
+# --- 2. Estratégias de Exploração (Stateful) ---
 class ExplorationStrategy(ABC):
     """
-    Interface genérica para estratégias de exploração.
-    Pode retornar um escalar (Epsilon para DQN) ou um Tensor/Array (Ruído para DDPG).
+    Interface para estratégias de exploração com estado interno.
     """
     @abstractmethod
-    def get_value(self, action_dim, current_episode=None):
+    def get_value(self, action_dim=None):
+        """Retorna o valor atual (ruído ou epsilon) baseado no estado interno."""
         pass
 
     @abstractmethod
     def decay(self):
+        """
+        Atualiza o estado interno (ex: diminui epsilon ou aumenta contador de episódios).
+
+        Returns:
+            float: O valor atualizado do estado interno (epsilon ou std por exemplo).
+        """
         pass
 
+    @abstractmethod
+    def reset(self):
+        """Reinicia a estratégia para os valores iniciais."""
+        pass
 
 class GaussianDecayNoise(ExplorationStrategy):
     """
-    Estratégia para Espaço Contínuo (DDPG/TD3).
-    Retorna: Vetor de ruído para ser SOMADO à ação.
+    Estratégia para Espaço Contínuo (DDPG).
     """
-    def __init__(self, initial_std=0.1, decay_rate=50):
-        self.initial_std = initial_std
+    def __init__(self, start_std=1.0, min_std=0.1, decay_rate=0.995):
+        self.start_std = start_std
+        self.current_std = start_std
+        self.min_std = min_std
         self.decay_rate = decay_rate
 
-    def get_value(self, action_dim, current_episode=0):
-        std = max(self.initial_std, 1.0 - current_episode / self.decay_rate)
-        return np.random.normal(0, std, size=action_dim)
-    
-    def decay(self):
-        return super().decay()
+    def get_value(self, action_dim=1):
+        return np.random.normal(0, self.current_std, size=action_dim)
+
+    def decay(self) -> float:
+        self.current_std = max(self.min_std, self.current_std * self.decay_rate)
+        return self.current_std
+
+    def reset(self):
+        self.current_std = self.start_std
 
 class EpsilonGreedyStrategy(ExplorationStrategy):
     """
     Estratégia para Espaço Discreto (DQN).
-    Retorna: Escalar (float) representando a probabilidade de exploração.
     """
-    def __init__(self, start=1.0, end=0.05, decay=0.99):
-        self.epsilon = start
+    def __init__(self, start=1.0, end=0.05, decay_rate=0.99):
+        self.start = start
         self.end = end
-        self.decay_rate = decay
+        self.decay_rate = decay_rate
+        self.current_epsilon = start
 
-    def get_value(self, action_dim=None, current_episode=None):
-        return self.epsilon
-    
+    def get_value(self, action_dim=None):
+        return self.current_epsilon
+
     def decay(self):
-        self.epsilon = max(self.end, self.epsilon * self.decay_rate)
+        self.current_epsilon = max(self.end, self.current_epsilon * self.decay_rate)
+        return self.current_epsilon
+    
+    def reset(self):
+        self.current_epsilon = self.start

@@ -105,11 +105,11 @@ class DQNAgent():
         
         self.target_net.load_state_dict(target_net_state_dict)
 
-    def save_policy_net(self, path="./policy_net.pt"):
+    def save(self, path="./policy_net.pt"):
         torch.save(self.policy_net.state_dict(), path)
         print(f"Modelo salvo em {path}")
 
-    def load_pretmodel(self, path: str):
+    def load(self, path: str):
         self.policy_net.load_state_dict(torch.load(path, map_location=self.device))
         self.target_net.load_state_dict(self.policy_net.state_dict()) 
         self.target_net.eval()

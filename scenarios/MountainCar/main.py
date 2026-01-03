@@ -14,11 +14,13 @@ from core.info_overlay import InfoOverlay
 from core.exploration import EpsilonGreedyStrategy
 from mountain_car_reward_wrapper import MountainCarRewardWrapper
 
+VIDEO_DIR = "VideosMountainCar"
 # Diretório onde o script está localizado
 BASE_DIR = Path(__file__).resolve().parent
 # Cria diretórios para salvar modelos e vídeos, se não existirem
 (BASE_DIR / "model").mkdir(parents=True, exist_ok=True)
-(BASE_DIR / "VideosMountainCar").mkdir(parents=True, exist_ok=True)
+# Cria diretório para vídeos com base no nome definido em VIDEO_DIR
+(BASE_DIR / VIDEO_DIR).mkdir(parents=True, exist_ok=True)
 
 ENV_NAME = 'MountainCar-v0' 
 LR = 0.0005
@@ -26,7 +28,7 @@ MEMORY_CAPACITY = 100000
 BATCH_SIZE = 64
 GAMMA = 0.95
 TAU = 0.005
-NUM_EPISODES = 1500
+NUM_EPISODES = 600
 
 EPS_START = 1.0
 EPS_END = 0.005
@@ -66,7 +68,7 @@ name_prefix = "Mountain-Car-dqn_train"
 dqn_env = gym.make(ENV_NAME, render_mode="rgb_array")
 # dqn_env.max_episode_steps = 500  # Aumentar o limite de passos por episódio
 dqn_env = InfoOverlay(dqn_env, format_type = format_type)
-dqn_env = RecordVideo(dqn_env, video_folder=f"{BASE_DIR}/VideosMountainCar", name_prefix=name_prefix, episode_trigger=segmented_limit_trigger)
+dqn_env = RecordVideo(dqn_env, video_folder=f"{BASE_DIR}/{VIDEO_DIR}", name_prefix=name_prefix, episode_trigger=segmented_limit_trigger)
 dqn_env = MountainCarRewardWrapper(dqn_env)
 
 trainer = Trainer(env=dqn_env, agent=agent)
@@ -75,10 +77,13 @@ try:
     
     trainer.train(num_episodes=NUM_EPISODES) 
 
-    agent.save_policy_net(f"{BASE_DIR}/model/Mountain_Car_dqn.pt")
+    agent.save(f"{BASE_DIR}/model/Mountain_Car_dqn.pt")
+
+    dqn_env.close()
 
 except KeyboardInterrupt:
     print("\nTreinamento interrompido. Salvando modelo atual")
-    agent.save_policy_net(f"{BASE_DIR}/model/Mountain_Car_interrompido.pt")
+    agent.save(f"{BASE_DIR}/model/Mountain_Car_interrompido.pt")
+    dqn_env.close()
 
 

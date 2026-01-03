@@ -21,9 +21,9 @@ def segmented_limit_trigger(episode_id: int) -> bool:
     - Episódios 10-99: grava a cada 5 episódios.
     - Episódios 100 em diante grava a cada 10."""
 
-    if episode_id < 10:
-        return True
-    elif episode_id < 100:
-        return episode_id % 5 == 0
+    if episode_id < 200:
+        return episode_id % 20 == 0
+    elif episode_id < 500:
+        return episode_id % 40 == 0
     else:
         return episode_id % 10 == 0

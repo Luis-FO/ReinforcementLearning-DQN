@@ -10,3 +10,6 @@ tools
 CartPole-v1_5.zip
 trash_models
 reinforcementlearning_dqn.egg-info/
+videos*
+*.pt
+model/
