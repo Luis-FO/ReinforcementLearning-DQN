@@ -24,11 +24,6 @@ class DecayingExplorationStrategy(ExplorationStrategy):
 
 
 class GaussianNoise(ExplorationStrategy):
-    """
-    Estratégia stateless. 
-    Implementa apenas ExplorationStrategy, não sendo forçada a implementar decay/reset.
-    Isso respeita o ISP (Interface Segregation Principle).
-    """
     def __init__(self, std=0.1):
         self.std = std
 
