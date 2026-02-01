@@ -11,22 +11,31 @@ class ExplorationStrategy(ABC):
         """Retorna o valor atual (ruído ou epsilon) baseado no estado interno."""
         pass
 
+
+class DecayingExplorationStrategy(ExplorationStrategy):
+    """Interface segregada: Adiciona comportamento de decaimento e reinício."""
     @abstractmethod
     def decay(self):
-        """
-        Atualiza o estado interno (ex: diminui epsilon ou aumenta contador de episódios).
-
-        Returns:
-            float: O valor atualizado do estado interno (epsilon ou std por exemplo).
-        """
         pass
 
     @abstractmethod
     def reset(self):
-        """Reinicia a estratégia para os valores iniciais."""
         pass
 
-class GaussianDecayNoise(ExplorationStrategy):
+
+class GaussianNoise(ExplorationStrategy):
+    """
+    Estratégia stateless. 
+    Implementa apenas ExplorationStrategy, não sendo forçada a implementar decay/reset.
+    Isso respeita o ISP (Interface Segregation Principle).
+    """
+    def __init__(self, std=0.1):
+        self.std = std
+
+    def get_value(self, action_dim=1):
+        return np.random.normal(0, self.std, size=action_dim)
+
+class GaussianDecayNoise(DecayingExplorationStrategy):
     """
     Estratégia para Espaço Contínuo (DDPG).
     """
@@ -46,7 +55,7 @@ class GaussianDecayNoise(ExplorationStrategy):
     def reset(self):
         self.current_std = self.start_std
 
-class EpsilonGreedyStrategy(ExplorationStrategy):
+class EpsilonGreedyStrategy(DecayingExplorationStrategy):
     """
     Estratégia para Espaço Discreto (DQN).
     """
