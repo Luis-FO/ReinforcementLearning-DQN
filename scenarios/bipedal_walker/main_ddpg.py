@@ -17,21 +17,21 @@ from core.exploration import GaussianDecayNoise
 BASE_DIR = Path(__file__).resolve().parent
 # Cria diretórios para salvar modelos e vídeos, se não existirem
 (BASE_DIR / "model").mkdir(parents=True, exist_ok=True)
-(BASE_DIR / "VideosPendulumV2").mkdir(parents=True, exist_ok=True)
+(BASE_DIR / "VideosBipedalWalker").mkdir(parents=True, exist_ok=True)
 
-ENV_NAME = 'Pendulum-v1' 
+ENV_NAME = 'BipedalWalker-v3' 
 LR_ACTOR = 0.0001
 LR_CRITIC = 0.001
 
-MEMORY_CAPACITY = 100000
-BATCH_SIZE = 64
-GAMMA = 0.95
+MEMORY_CAPACITY = 300000
+BATCH_SIZE = 256
+GAMMA = 0.99
 TAU = 0.005
-NUM_EPISODES = 1500
+NUM_EPISODES = 2500
 
-START_STD = 1.0
-MIN_STD = 0.005
-STD_DECAY = 0.98
+START_STD = 0.6
+MIN_STD = 0.05
+STD_DECAY = 0.995
 
 device = torch.device(
     "cuda" if torch.cuda.is_available() else
@@ -48,6 +48,9 @@ temp_env.close()
 
 actor = Actor(state_dim, action_dim, max_action).to(device)
 critic = Critic(state_dim, action_dim).to(device)
+
+# actor.load(f"{BASE_DIR}/model/BipedalWalker_actor_interrompido.pt")
+# critic.load(f"{BASE_DIR}/model/BipedalWalker_critic_interrompido.pt")
 
 actor_optim = optim.Adam(actor.parameters(), lr=LR_ACTOR)
 critic_optim = optim.Adam(critic.parameters(), lr=LR_CRITIC)
@@ -73,37 +76,28 @@ agent = DDPGAgent(
         device=device
 )
 
-
 format_type = "stories"  # 'stories'
-name_prefix = "Pendulum-dqn_train"
+name_prefix = "BipedalWalker-dqn_train"
 
-def record_trigger(episode_id: int) -> bool:
-    if episode_id < 10:
-        return True
-    elif episode_id < 50:
-        return episode_id % 5 == 0
-    else:
-        return episode_id % 15 == 0
-    
 # Setup environment with InfoOverlay and RecordVideo
 dqn_env = gym.make(ENV_NAME, render_mode="rgb_array")
 dqn_env = InfoOverlay(dqn_env, format_type = format_type)
-dqn_env = RecordVideo(dqn_env, video_folder=f"{BASE_DIR}/VideosPendulumV2", name_prefix="Pendulum-dqn_train_v1", episode_trigger=record_trigger)
+dqn_env = RecordVideo(dqn_env, video_folder=f"{BASE_DIR}/VideosBipedalWalker", name_prefix="BipedalWalker-dqn_train_v1", episode_trigger=segmented_limit_trigger)
 
-trainer = Trainer(env=dqn_env, agent=agent)
+trainer = Trainer(env=dqn_env, agent=agent, warmup_steps=10000)
 
 try:
     
     trainer.train(num_episodes=NUM_EPISODES)
 
-    agent.actor.save(f"{BASE_DIR}/model/Pendulum_actor.pt")
-    agent.critic.save(f"{BASE_DIR}/model/Pendulum_critic.pt")
+    agent.actor.save(f"{BASE_DIR}/model/BipedalWalker_actor.pt")
+    agent.critic.save(f"{BASE_DIR}/model/BipedalWalker_critic.pt")
 
     dqn_env.close()
 
 except KeyboardInterrupt:
     print("\nTreinamento interrompido. Salvando modelo atual")
-    agent.actor.save(f"{BASE_DIR}/model/Pendulum_actor_interrompido.pt")
-    agent.critic.save(f"{BASE_DIR}/model/Pendulum_critic_interrompido.pt")
+    agent.actor.save(f"{BASE_DIR}/model/BipedalWalker_actor_interrompido.pt")
+    agent.critic.save(f"{BASE_DIR}/model/BipedalWalker_critic_interrompido.pt")
 
     dqn_env.close()
