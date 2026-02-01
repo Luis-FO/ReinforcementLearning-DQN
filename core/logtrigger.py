@@ -23,7 +23,5 @@ def segmented_limit_trigger(episode_id: int) -> bool:
 
     if episode_id < 200:
         return episode_id % 20 == 0
-    elif episode_id < 500:
-        return episode_id % 40 == 0
     else:
         return episode_id % 10 == 0

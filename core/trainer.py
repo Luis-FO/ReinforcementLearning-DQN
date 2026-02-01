@@ -12,6 +12,10 @@ class Trainer():
     def train(self, num_episodes):
         episode_rewards = []
 
+        # TODO: Evitar o uso de hasattr, talvez com um padrão Strategy mais robusto.
+        if hasattr(self.agent.exploration_strategy, 'reset'):
+            self.agent.exploration_strategy.reset()
+
         # Training loop
         for episode in range(num_episodes):
             # Resetando o ambiente no início de cada episódio
@@ -26,7 +30,6 @@ class Trainer():
                     # Selecionar ação com política epsilon-greedy.
                     action = self.agent.select_action(obs, training = True)
                 
-                
 
                 # Executar ação no ambiente
                 next_obs, reward, terminate, truncate, _ = self.env.step(action)
@@ -36,19 +39,22 @@ class Trainer():
                 # Armazenar a transição na memória de replay
                 self.agent.memory.push(obs, action, reward, next_obs, done)
 
-                
-                # Atualizar o agente após cada passo
-                self.agent.update()
+                # Atualizar o agente após cada passo se estiver fora do warmup
+                if self.steps >= self.warmup_steps:
+                    self.agent.update()
                 
                 obs = next_obs
                 total_reward += reward
                 self.steps+=1
-            if self.steps >= self.warmup_steps:
-                # Decair após cada episódio
+
+            # Decair o valor de exploração se aplicável
+            if hasattr(self.agent.exploration_strategy, 'decay') and self.steps >= self.warmup_steps:
                 exploration_value = self.agent.exploration_strategy.decay()
-                print(f"Episódio {episode}: Recompensa Total = {total_reward}, Exploration = {exploration_value:.4f}  ")
+                print(f"Episódio {episode}: Recompensa = {total_reward:.2f}, Exploration = {exploration_value:.4f}")
             else:
-                print(f"Episódio {episode}: Recompensa Total = {total_reward} (Warmup) ")
+                status = "Warm Up" if self.steps < self.warmup_steps else "Treinando"
+                print(f"Episódio {episode}: Recompensa {total_reward:.2f} | Status: {status} | Total Steps: {self.steps}")
+
             episode_rewards.append(total_reward)
             
 

@@ -1,6 +1,5 @@
 from collections import deque
 from random import sample
-import torch
 import numpy as np
 
 

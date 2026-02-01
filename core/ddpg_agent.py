@@ -83,15 +83,13 @@ class DDPGAgent:
         actor_loss.backward()
         self.actor_optimizer.step()
 
-        self._soft_update()
+        self._soft_update(self.actor, self.actor_target)
+        self._soft_update(self.critic, self.critic_target)
 
-    def _soft_update(self):
-        for current_params, target_params in zip(self.actor.parameters(), self.actor_target.parameters()):
+    def _soft_update(self, net, target_net):
+        for current_params, target_params in zip(net.parameters(), target_net.parameters()):
             target_params.data.copy_(current_params.data*self.tau + (1-self.tau)*target_params.data)
-
-        for current_params, target_params in zip(self.critic.parameters(), self.critic_target.parameters()):
-            target_params.data.copy_(self.tau * current_params.data + (1 - self.tau) * target_params.data)
-
+            
 if __name__ == "__main__":
     
     agent = DDPGAgent(
