@@ -79,4 +79,5 @@ except KeyboardInterrupt:
     print("\nTreinamento interrompido. Salvando modelo atual")
     agent.save(f"{BASE_DIR}/model/CartPole_interrompido.pt")
 
-
+finally:
+    dqn_env.close()

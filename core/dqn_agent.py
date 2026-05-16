@@ -4,20 +4,24 @@ import copy
 
 from core.replay_memory import ReplayMemory
 from core.exploration import ExplorationStrategy
+from core.off_policy_algorithm import OffPolicyAlgorithm
 
-class DQNAgent():
-    def __init__(self, 
+class DQNAgent(OffPolicyAlgorithm):
+    def __init__(self,
+                 env, 
                  policy_net,
                  optimizer,
                  criterion,
                  memory_capacity: int,
                  exploration_strategy: ExplorationStrategy,
                  gamma=0.99,
+                 warmup_steps=1000,
                  tau=0.005,
                  batch_size=128,
                  device= 'cuda'
                  ):
 
+        super().__init__(env, device, warmup_steps=warmup_steps)
         self.device = device
 
         self.policy_net = policy_net
@@ -32,13 +36,28 @@ class DQNAgent():
         self.gamma = gamma # Fator de desconto
         self.tau = tau  # Taxa de atualização da target_net
         self.batch_size = batch_size
-
+        self.steps_done = 0
         self.n_actions = policy_net.output_size
+
+    def get_info(self):
+        return {
+            "exploration": self.exploration_strategy.get_value()
+        }
+    
+    def on_step(self):
+        """Method called at the end of each step in the environment. Can be used to decay exploration strategies or other stateful components."""
+        self.steps_done += 1
+        # if self.steps_done >= 20000:
+        #     self.exploration_strategy.reset()
+        #     self.steps_done = 0
+    def on_train_start(self):
+        """Method called at the beginning of the training loop. Can be used to reset exploration strategies or other stateful components."""
+        self.exploration_strategy.reset()
 
 
     def select_action(self, obs, training=True):
         """Seleciona uma ação com base na política epsilon-greedy."""
-        eps_threshold = self.exploration_strategy.get_value()
+        eps_threshold = self.exploration_strategy.get_value(action_dim=self.n_actions)
         if random.random() < eps_threshold and training:
             return random.randrange(self.n_actions)  
         
@@ -47,7 +66,7 @@ class DQNAgent():
             obs_tensor =  torch.FloatTensor(obs).unsqueeze(0).to(self.device)
             return self.policy_net(obs_tensor).argmax().item()
 
-    def update(self):
+    def _update(self):
         """Função para otimizar o modelo de rede neural.
         Usa amostras da memória de replay para atualizar os pesos da rede.
         Os pesos são atualizados minimizando a diferença entre os valores Q previstos e os valores Q esperados.
@@ -56,6 +75,7 @@ class DQNAgent():
         if len(self.memory) < self.batch_size :
             return
         
+        self.exploration_strategy.decay()  # Decai o valor de exploração a cada atualização
         # Captura uma amostra de transições da memória de replay
         state_batch, action_batch, reward_batch, next_states, dones = self.memory.sample(self.batch_size)
 
