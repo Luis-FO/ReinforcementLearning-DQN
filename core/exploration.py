@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
-# --- 2. Estratégias de Exploração (Stateful) ---
+
 class ExplorationStrategy(ABC):
     """
     Interface para estratégias de exploração com estado interno.
@@ -9,6 +9,35 @@ class ExplorationStrategy(ABC):
     @abstractmethod
     def get_value(self, action_dim=None):
         """Retorna o valor atual (ruído ou epsilon) baseado no estado interno."""
+        pass
+
+    def decay(self):
+        """Optional: decay the internal state (e.g., epsilon, noise std)."""
+        return None
+
+    def reset(self):
+        """Optional: reset internal state at the start of training/episode."""
+        return None
+
+    def on_step(self):
+        """Optional: called on every environment step if agents choose to."""
+        return None
+
+    def on_train_start(self):
+        """Optional: called at the beginning of training loops."""
+        return None
+
+
+class FixedEpsilonGreedy(ExplorationStrategy):
+    def __init__(self, epsilon=0.1):
+        self.epsilon = epsilon
+
+    def get_value(self, action_dim=None):
+        return self.epsilon
+    
+    def decay(self):
+        pass
+    def reset(self):
         pass
 
 
@@ -49,6 +78,54 @@ class GaussianDecayNoise(DecayingExplorationStrategy):
 
     def reset(self):
         self.current_std = self.start_std
+
+# New class that decay epsilon Greedy based on steps, not episodes, and has a reset method to restart the decay process.
+class LinearDecayEpsilonGreedy(DecayingExplorationStrategy):
+    def __init__(self, start=1.0, end=0.05, decay_steps=10000):
+        self.start = start
+        self.end = end
+        self.decay_steps = decay_steps
+        self.current_epsilon = start
+        self.steps = 0
+
+    def get_value(self, action_dim=None):
+        return self.current_epsilon
+
+    def decay(self):
+        if self.steps < self.decay_steps:
+            self.current_epsilon = self.start - (self.start - self.end) * (self.steps / self.decay_steps)
+            self.steps += 1
+        else:
+            self.current_epsilon = self.end
+        return self.current_epsilon
+    
+    def reset(self):
+        self.current_epsilon = self.start
+        self.steps = 0
+
+class ExponentialDecayEpsilonGreedy(DecayingExplorationStrategy):
+    def __init__(self, start=1.0, end=0.05, decay_steps=10000):
+        self.start = start
+        self.end = end
+        self.decay_steps = decay_steps
+        self.current_epsilon = start
+        self.steps = 0
+
+    def get_value(self, action_dim=None):
+        return self.current_epsilon
+
+    def decay(self):
+        if self.steps < self.decay_steps:
+            self.current_epsilon = self.end + (self.start - self.end) * np.exp(-self.steps / self.decay_steps)
+            self.steps += 1
+        else:
+            self.current_epsilon = self.end
+        return self.current_epsilon
+    
+    def reset(self):
+        self.current_epsilon = self.start
+        self.steps = 0
+
 
 class EpsilonGreedyStrategy(DecayingExplorationStrategy):
     """
