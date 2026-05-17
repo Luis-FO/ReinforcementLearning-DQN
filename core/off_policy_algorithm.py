@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from core.base_class import BaseAlgorithm
 from random import random
 import torch
+import numpy as np
 
 class OffPolicyAlgorithm(BaseAlgorithm, ABC):
     def __init__(self, env, device, warmup_steps=1000):
@@ -96,7 +97,35 @@ class OffPolicyAlgorithm(BaseAlgorithm, ABC):
 
         print(f"Treino concluído. Métrica final (média de 100): {final_metric}")
         return final_metric
-         
+        
+    def test(self, num_episodes):
+        episode_rewards = []
+
+        for episode in range(num_episodes):
+            obs, _ = self.env.reset()
+            done = False
+            total_reward = 0
+
+            while not done:
+                action = self.select_action(obs, training=False)
+                next_obs, reward, terminate, truncate, _ = self.env.step(action)
+
+                done = terminate or truncate
+                obs = next_obs
+                total_reward += reward
+
+            episode_rewards.append(total_reward)
+            print(f"Teste Episódio {episode + 1}/{num_episodes}: Recompensa = {total_reward:.2f}")
+
+        self.env.close()
+
+        mean_reward = np.mean(episode_rewards)
+        std_reward = np.std(episode_rewards)
+
+        print(f"\n--- Teste Concluído ---")
+        print(f"Média: {mean_reward:.2f} +/- {std_reward:.2f}")
+
+        return mean_reward, std_reward
 
     # # Check if I should put this method in the base class, since it's used in both on-policy and off-policy algorithms
     # def _update(self):

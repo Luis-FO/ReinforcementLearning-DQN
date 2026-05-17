@@ -1,4 +1,4 @@
-
+# Deprecated Implementation of DQN for MountainCar. This file is kept for reference and should not be used for training.
 import torch
 import torch.nn as nn
 import torch.optim as optim

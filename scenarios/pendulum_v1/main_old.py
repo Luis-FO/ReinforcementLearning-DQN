@@ -1,4 +1,4 @@
-
+# Deprecated: This implementation uses a old version that splits trainer and agent.This file is kept for reference.
 import torch
 import torch.nn as nn
 import torch.optim as optim
