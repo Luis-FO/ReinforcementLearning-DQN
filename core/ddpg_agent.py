@@ -22,11 +22,11 @@ class DDPGAgent(OffPolicyAlgorithm):
         super().__init__(env, self.device, warmup_steps=0)
 
         self.actor = actor.to(self.device)
-        self.actor_target = copy.deepcopy(self.actor)
+        self.actor_target = copy.deepcopy(self.actor).to(self.device)
         self.actor_optimizer = actor_optimizer
         
         self.critic = critic.to(self.device)
-        self.critic_target = copy.deepcopy(self.critic)
+        self.critic_target = copy.deepcopy(self.critic).to(self.device)
         self.critic_optimizer = critic_optimizer
 
         self.criterion = criterion

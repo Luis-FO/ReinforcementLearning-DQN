@@ -15,17 +15,22 @@ class DQNAgent(OffPolicyAlgorithm):
                  memory_capacity: int,
                  exploration_strategy: ExplorationStrategy,
                  gamma=0.99,
-                 warmup_steps=1000,
+                 warmup_steps=0,
                  tau=0.005,
                  batch_size=128,
                  device= 'cuda'
                  ):
+        
+        if isinstance(device, str):
+            if device == 'cuda' and not torch.cuda.is_available():
+                device = 'cpu'
+            device = torch.device(device)
 
-        super().__init__(env, device, warmup_steps=warmup_steps)
         self.device = device
+        super().__init__(env, self.device, warmup_steps=warmup_steps)
 
-        self.policy_net = policy_net
-        self.target_net = copy.deepcopy(policy_net).to(device)  # Cria uma nova instância da mesma classe
+        self.policy_net = policy_net.to(self.device)
+        self.target_net = copy.deepcopy(policy_net).to(self.device)  # Cria uma nova instância da mesma classe
         self.target_net.eval()
 
         self.optimizer = optimizer

@@ -5,28 +5,35 @@ import numpy as np
 from core.networks import Actor, Critic
 from core.replay_memory import ReplayMemory
 from core.exploration import ExplorationStrategy
+from core.off_policy_algorithm import OffPolicyAlgorithm
 
-class TD3Agent:
-    def __init__(self, actor: Actor, critic_1: Critic, critic_2: Critic,
+class TD3Agent(OffPolicyAlgorithm):
+    def __init__(self, env, actor: Actor, critic_1: Critic, critic_2: Critic,
                  actor_optim, critic_optim_1, critic_optim_2,
                  exploration_strategy: ExplorationStrategy, criterion,
-                 memory_capacity=100000, device='cpu', gamma=0.99, tau=0.005, 
+                 memory_capacity=100000, warmup_steps=0, device='cpu', gamma=0.99, tau=0.005,
                  batch_size=256, policy_noise=0.2, noise_clip=0.5, policy_freq=2
                  ):
         
-        self.device = device
+        if isinstance(device, str):
+            if device == 'cuda' and not torch.cuda.is_available():
+                device = 'cpu'
+            device = torch.device(device)
 
-        self.actor = actor
-        self.actor_target = copy.deepcopy(actor).to(device)
+        self.device = device
+        super().__init__(env, self.device, warmup_steps=warmup_steps)
+
+        self.actor = actor.to(self.device)
+        self.actor_target = copy.deepcopy(self.actor).to(self.device)
 
         self.actor_optimizer = actor_optim
 
-        self.critic_1 = critic_1.to(device)
-        self.critic_1_target = copy.deepcopy(critic_1).to(device)
+        self.critic_1 = critic_1.to(self.device)
+        self.critic_1_target = copy.deepcopy(critic_1).to(self.device)
         self.critic_optimizer_1 = critic_optim_1
 
-        self.critic_2 = critic_2.to(device)
-        self.critic_2_target = copy.deepcopy(critic_2).to(device)
+        self.critic_2 = critic_2.to(self.device)
+        self.critic_2_target = copy.deepcopy(critic_2).to(self.device)
         self.critic_optimizer_2 = critic_optim_2
 
         self.criterion = criterion
@@ -61,8 +68,10 @@ class TD3Agent:
         # Garante que a ação esteja dentro dos limites válidos
         return np.clip(action, -self.actor.max_action, self.actor.max_action)
     
+    def get_info(self):
+        return {"Total training steps": self.total_it}
     
-    def update(self):
+    def _update(self):
         
         self.total_it += 1
 

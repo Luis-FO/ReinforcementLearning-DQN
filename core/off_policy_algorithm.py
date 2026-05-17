@@ -1,11 +1,7 @@
-from abc import ABC, abstractmethod
-
 from core.base_class import BaseAlgorithm
-from random import random
-import torch
 import numpy as np
 
-class OffPolicyAlgorithm(BaseAlgorithm, ABC):
+class OffPolicyAlgorithm(BaseAlgorithm):
     def __init__(self, env, device, warmup_steps=1000):
         super().__init__(env, device)
 
@@ -22,14 +18,6 @@ class OffPolicyAlgorithm(BaseAlgorithm, ABC):
 
     def _store_transition(self, obs, action, reward, next_obs, done):
         self.memory.push(obs, action, reward, next_obs, done)
-
-    @abstractmethod
-    def _update(self):
-        pass
-
-    @abstractmethod
-    def select_action(self, obs, training=True):
-        pass
 
     def setEnv(self, env):
         self.env = env

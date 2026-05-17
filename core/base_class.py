@@ -23,6 +23,16 @@ class BaseAlgorithm(ABC):
     
     def train(self):
         raise NotImplementedError("Train method not implemented yet.")
+    
+    @abstractmethod
+    def _update(self):
+        """Update the agent's networks based on a batch of experiences."""
+        pass
+    
+    @abstractmethod
+    def select_action(self, obs, training=True):
+        """Select action for given observation."""
+        pass    
 
     def predict(self, obs):
         """Predict action for given observation."""
