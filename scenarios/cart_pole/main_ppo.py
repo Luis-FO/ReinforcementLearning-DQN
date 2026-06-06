@@ -7,7 +7,6 @@ from pathlib import Path
 
 from core.ppo_agent import PPOAgent
 
-from core.trainer import Trainer
 from core.logtrigger import segmented_limit_trigger
 from core.info_overlay import InfoOverlay
 
@@ -43,16 +42,6 @@ n_actions = temp_env.action_space.n
 temp_env.close()
 
 
-agent = PPOAgent(state_dim=n_observations, 
-                 action_dim=n_actions,
-                 device=device,
-                 lr=LR,
-                 gamma=GAMMA,
-                 eps_clip=EPS_CLIP,
-                 k_epochs=K_EPOCHS,
-                 update_timesteps=UPDATE_TIMESTEPS)
-
-
 format_type = "stories"  # 'stories'
 name_prefix = "Mountain-Car-dqn_train"
 
@@ -61,11 +50,15 @@ dqn_env = gym.make(ENV_NAME, render_mode="rgb_array")
 dqn_env = InfoOverlay(dqn_env, format_type = format_type)
 dqn_env = RecordVideo(dqn_env, video_folder=f"{BASE_DIR}/VideosCartPole_PPO", name_prefix="CartPole-PPO_train_v1", episode_trigger=segmented_limit_trigger)
 
-trainer = Trainer(env=dqn_env, agent=agent, warmup_steps=0)
+agent = PPOAgent(env=dqn_env,
+                 state_dim=n_observations,
+                action_dim=n_actions,
+                learning_rate=LR,
+                device=device)
 
 try:
     
-    trainer.train(num_episodes=NUM_EPISODES)
+    agent.train(total_steps=NUM_EPISODES * UPDATE_TIMESTEPS)
     agent.save(f"{BASE_DIR}/model/CartPole_PPO.pt")
 
 except KeyboardInterrupt:

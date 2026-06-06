@@ -1,0 +1,54 @@
+import numpy as np
+
+class RolloutBuffer:
+    def __init__(self, size, gamma=0.99, gae_lambda=0.95):
+        self.size = size
+        self.gamma = gamma
+        self.gae_lambda = gae_lambda
+        self.reset()
+
+
+    def add(self, state, action, reward, next_state, done, values=None, log_probs=None):
+        self.states.append(state)
+        self.actions.append(action)
+        self.rewards.append(reward)
+        self.next_states.append(next_state)
+        self.logprobs.append(log_probs)
+        self.is_terminals.append(done)
+        self.values.append(values)
+
+    # TODO: atributers shoud be numpy arrays instead of lists
+    def reset(self):
+        self.states = []
+        self.actions = []
+        self.next_states = []
+        self.logprobs = []
+        self.rewards = []
+        self.is_terminals = []
+        self.values = []
+        self.returns = []
+        self.advantages = []
+
+    def sample(self):
+        return (
+            np.array(self.states),
+            np.array(self.actions),
+            np.array(self.rewards),
+            np.array(self.values),
+            np.array(self.next_states),
+            np.array(self.is_terminals),
+            np.array(self.logprobs)
+        )
+    
+    def _compute_returns_and_advantage(self, rewards, values, dones, last_value):
+        returns = []
+        advantages = []
+        gae = 0
+        for step in reversed(range(len(rewards))):
+            delta = rewards[step] + self.gamma * (1 - dones[step]) * last_value - values[step]
+            gae = delta + self.gamma * self.gae_lambda * (1 - dones[step]) * gae
+            advantages.insert(0, gae)
+            returns.insert(0, gae + values[step])
+            last_value = values[step]
+        self.returns, self.advantages = np.array(returns), np.array(advantages)
+        return self.returns, self.advantages
