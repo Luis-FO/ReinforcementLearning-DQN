@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-from torch.distributions import Categorical
+
+from core.distributions import BaseDistribution, CategoricalDistribution, NormalDistribution
 
 class BaseNetwork(nn.Module):
     def save(self, path):
@@ -11,33 +12,75 @@ class BaseNetwork(nn.Module):
 
 
 class ActorCritic(BaseNetwork):
-    def __init__(self, state_dim, action_dim):
+
+
+    # TODO: Add option for distribution type (discrete vs continuous) and 
+    # handle action sampling accordingly
+    def __init__(self, state_dim, action_dim, distribution_class: BaseDistribution):
         super(ActorCritic, self).__init__()
+        self.action_dim = action_dim
+
         self.actor = nn.Sequential(
             nn.Linear(state_dim, 64), nn.Tanh(),
-            nn.Linear(64, 64), nn.Tanh(),
-            nn.Linear(64, action_dim)
+            nn.Linear(64, 64), nn.Tanh()
         )
-        # Compute Value function from the same state input
+
         self.critic = nn.Sequential(
             nn.Linear(state_dim, 64), nn.Tanh(),
             nn.Linear(64, 64), nn.Tanh(),
             nn.Linear(64, 1)
         )
+        assert distribution_class is not None, "distribution_class must be provided (e.g., CategoricalDistribution or NormalDistribution)"
+        self.distribution_class = distribution_class
+        self.action_dist = distribution_class(action_dim)
+        self.log_std = None
+        self._build()
+
+    def _build(self):
+        if isinstance(self.action_dist, NormalDistribution):
+            # TODO: Change the way latent_dim is extracted to be more robust to changes in the actor architecture
+            action_net, log_std = self.action_dist.proba_distribution_net(self.actor[-2].out_features)
+            self.action_net = action_net
+            self.log_std = nn.Parameter(log_std.data)
+        elif isinstance(self.action_dist, CategoricalDistribution):
+            self.action_net = self.action_dist.proba_distribution_net(self.actor[-2].out_features)
+        else:
+            raise NotImplementedError("Unsupported distribution class")
         
+    def _predict(self, state):
+        action_logits = self.actor(state)
+        state_value = self.critic(state)
+        return action_logits, state_value
+    
     def act(self, state):
         # Compute action probabilities based on current policy
-        action_logits = self.actor(state)
-        # Sample an action from the distribution
-        dist = Categorical(logits=action_logits)
-        action = dist.sample() # Return the sampled index (as a tensor) of the action in the action space.
+        # action_logits = self.actor(state)
+        latent_pi = self.actor(state)
+
         state_value = self.critic(state)
+        # Sample an action from the distribution
+        dist = self._get_action_distribution(latent_pi)
+        actions = dist.get_actions()
+        log_prob = dist.log_prob(actions)
+
         # Return both the action and its log probability for later use in the update step
-        return action.detach(), dist.log_prob(action).detach(), state_value.detach()
-    
+        return actions, log_prob, state_value
+
+    def _get_action_distribution(self, latent_pi):
+
+        mean_actions = self.action_net(latent_pi)
+
+        
+        if isinstance(self.action_dist, CategoricalDistribution):
+            return self.action_dist.proba_distribution(mean_actions)
+        elif isinstance(self.action_dist, NormalDistribution):
+            return self.action_dist.proba_distribution(mean_actions, self.log_std)
+        else:
+            raise ValueError("Unsupported distribution class")
+        
     def evaluate(self, state: torch.Tensor, action: torch.Tensor):
-        action_logits = self.actor(state)
-        dist = Categorical(logits=action_logits)
+        latent_pi = self.actor(state)
+        dist = self._get_action_distribution(latent_pi)
         action_logprobs = dist.log_prob(action)
         dist_entropy = dist.entropy()
         state_values = self.critic(state).squeeze(-1)

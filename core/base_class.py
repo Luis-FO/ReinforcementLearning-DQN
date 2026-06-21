@@ -10,16 +10,6 @@ class BaseAlgorithm(ABC):
         # self.policy = policy
         self.env =  env
         self.device = device
-
-    # @abstractmethod
-    # def _setup_model(self) -> None:
-    #     """Create networks, buffer and optimizers."""
-    #     pass
-
-    # @abstractmethod
-    # def learn(self):
-    #     """Main learning loop."""
-    #     pass
     
     def train(self):
         raise NotImplementedError("Train method not implemented yet.")
