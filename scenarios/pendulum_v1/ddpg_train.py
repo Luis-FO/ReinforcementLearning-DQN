@@ -1,4 +1,4 @@
-# Deprecated: This implementation uses a old version that splits trainer and agent.This file is kept for reference.
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -6,8 +6,6 @@ import gymnasium as gym
 from gymnasium.wrappers import RecordVideo
 from pathlib import Path
 
-from core.trainer import Trainer
-from core.logtrigger import segmented_limit_trigger
 from core.info_overlay import InfoOverlay
 from core.ddpg_agent import DDPGAgent
 from core.networks import Actor, Critic
@@ -17,7 +15,7 @@ from core.exploration import GaussianDecayNoise
 BASE_DIR = Path(__file__).resolve().parent
 # Cria diretórios para salvar modelos e vídeos, se não existirem
 (BASE_DIR / "model").mkdir(parents=True, exist_ok=True)
-(BASE_DIR / "VideosPendulumV2").mkdir(parents=True, exist_ok=True)
+(BASE_DIR / "VideosPendulumV22").mkdir(parents=True, exist_ok=True)
 
 ENV_NAME = 'Pendulum-v1' 
 LR_ACTOR = 0.0001
@@ -28,6 +26,7 @@ BATCH_SIZE = 64
 GAMMA = 0.95
 TAU = 0.005
 NUM_EPISODES = 1500
+TOTAL_STEPS = NUM_EPISODES * 200
 
 START_STD = 1.0
 MIN_STD = 0.005
@@ -59,7 +58,21 @@ noise_strategy = GaussianDecayNoise(start_std=START_STD, min_std=MIN_STD, decay_
 # Critério de perda para o critic | O critério do actor é implícito na maximização do valor Q
 criterion = nn.MSELoss()
 
-agent = DDPGAgent(
+format_type = "stories"  # 'stories'
+name_prefix = "Pendulum-dqn_train"
+
+def record_trigger(episode_id: int) -> bool:
+    if episode_id < 50:
+        return episode_id % 5 == 0
+    else:
+        return episode_id % 15 == 0
+    
+# Setup environment with InfoOverlay and RecordVideo
+dqn_env = gym.make(ENV_NAME, render_mode="rgb_array")
+dqn_env = InfoOverlay(dqn_env, format_type = format_type)
+dqn_env = RecordVideo(dqn_env, video_folder=f"{BASE_DIR}/VideosPendulumV22", name_prefix="Pendulum-dqn_train_v1", episode_trigger=record_trigger)
+
+agent = DDPGAgent(env=dqn_env,
         actor=actor,
         critic=critic,
         actor_optimizer=actor_optim,
@@ -73,28 +86,8 @@ agent = DDPGAgent(
         device=device
 )
 
-
-format_type = "stories"  # 'stories'
-name_prefix = "Pendulum-dqn_train"
-
-def record_trigger(episode_id: int) -> bool:
-    if episode_id < 10:
-        return True
-    elif episode_id < 50:
-        return episode_id % 5 == 0
-    else:
-        return episode_id % 15 == 0
-    
-# Setup environment with InfoOverlay and RecordVideo
-dqn_env = gym.make(ENV_NAME, render_mode="rgb_array")
-dqn_env = InfoOverlay(dqn_env, format_type = format_type)
-dqn_env = RecordVideo(dqn_env, video_folder=f"{BASE_DIR}/VideosPendulumV2", name_prefix="Pendulum-dqn_train_v1", episode_trigger=record_trigger)
-
-trainer = Trainer(env=dqn_env, agent=agent)
-
 try:
-    
-    trainer.train(num_episodes=NUM_EPISODES)
+    agent.train(total_steps=TOTAL_STEPS)
 
     agent.actor.save(f"{BASE_DIR}/model/Pendulum_actor.pt")
     agent.critic.save(f"{BASE_DIR}/model/Pendulum_critic.pt")

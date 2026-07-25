@@ -25,7 +25,7 @@ NUM_EPISODES = 1500
 
 K_EPOCHS = 10          # Quantas vezes atualizar a rede com o mesmo batch
     
-UPDATE_TIMESTEPS = 2048 # Atualizar a cada X passos
+UPDATE_TIMESTEPS = 4096 # Atualizar a cada X passos
 
 
 
@@ -42,12 +42,12 @@ temp_env.close()
 
 
 format_type = "stories"  # 'stories'
-name_prefix = "Mountain-Car-dqn_train"
+name_prefix = "CartPole-PPO_train_v1"
 
 # Setup environment with InfoOverlay and RecordVideo
 dqn_env = gym.make(ENV_NAME, render_mode="rgb_array")
-dqn_env = InfoOverlay(dqn_env, format_type = format_type)
-dqn_env = RecordVideo(dqn_env, video_folder=f"{BASE_DIR}/VideosCartPole_PPO", name_prefix="CartPole-PPO_train_v1", episode_trigger=segmented_limit_trigger)
+# dqn_env = InfoOverlay(dqn_env, format_type = format_type)
+# dqn_env = RecordVideo(dqn_env, video_folder=f"{BASE_DIR}/VideosCartPole_PPO", name_prefix=name_prefix, episode_trigger=segmented_limit_trigger)
 
 agent = PPOAgent(env=dqn_env,
                  state_dim=n_observations,
@@ -56,6 +56,8 @@ agent = PPOAgent(env=dqn_env,
                 device=device,
                 distribution_class=CategoricalDistribution,
                 gamma=GAMMA,
+                ent_coef=0.01,
+                gae_lambda=0.95,
                 eps_clip=EPS_CLIP,
                 k_epochs=K_EPOCHS
                 )

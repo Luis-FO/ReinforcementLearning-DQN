@@ -7,10 +7,10 @@ from gymnasium.wrappers import RecordVideo
 from pathlib import Path
 
 from core.dqn_agent import DQNAgent
-from core.dqn_model import DQN
+from core.networks import DQN
 from core.logtrigger import segmented_limit_trigger
 from core.info_overlay import InfoOverlay
-from core.exploration import EpsilonGreedyStrategy, ExponentialDecayEpsilonGreedy, FixedEpsilonGreedy, LinearDecayEpsilonGreedy
+from core.exploration import FixedEpsilonGreedy, ExponentialDecayEpsilonGreedy
 
 # Diretório onde o script está localizado
 BASE_DIR = Path(__file__).resolve().parent
@@ -18,17 +18,18 @@ BASE_DIR = Path(__file__).resolve().parent
 (BASE_DIR / "model").mkdir(parents=True, exist_ok=True)
 (BASE_DIR / "VideosCartPole").mkdir(parents=True, exist_ok=True)
 
+
 ENV_NAME = 'CartPole-v1' 
-LR = 0.001
+LR = 0.0001
 MEMORY_CAPACITY = 100000
 BATCH_SIZE = 64
-GAMMA = 0.99 # Valor de desconto para o cálculo do retorno futuro
-TAU = 0.01 # Taxa de atualização da target_net (soft update) - valor típico entre 0.001 e 0.01, mas pode ser ajustado para um valor mais alto para acelerar a convergência em ambientes simples como CartPole.
+GAMMA = 0.95
+TAU = 0.005
 NUM_EPISODES = 1500
 TOTAL_STEPS = NUM_EPISODES * 200  # CartPole-v1 tem um limite de 500 passos por episódio, mas vamos usar 200 para acelerar o treinamento.
 
-EPS_START = 0.50
-EPS_END = 0.05
+EPS_START = 1.0
+EPS_END = 0.005
 # EPS_DECAY = 0.98
 
 device = torch.device(
@@ -46,11 +47,11 @@ policy_net = DQN(n_observations, n_actions)
 
 policy_net_optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
 policy_net_criterion = nn.SmoothL1Loss()
-# exploration_strategy = ExponentialDecayEpsilonGreedy(start=EPS_START, end=EPS_END, decay_steps=10000)
-exploration_strategy = FixedEpsilonGreedy(epsilon=EPS_END)
+exploration_strategy = ExponentialDecayEpsilonGreedy(start=EPS_START, end=EPS_END, decay_steps=10000)
+# exploration_strategy = FixedEpsilonGreedy(epsilon=EPS_END)
 
 format_type = "stories"  # 'stories'
-name_prefix = "Mountain-Car-dqn_train"
+name_prefix = "CartPole-dqn_train"
 
 # Setup environment with InfoOverlay and RecordVideo
 dqn_env = gym.make(ENV_NAME, render_mode="rgb_array")

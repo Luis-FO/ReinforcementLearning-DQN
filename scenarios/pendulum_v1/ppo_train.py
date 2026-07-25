@@ -27,7 +27,7 @@ NUM_EPISODES = 1500
 
 K_EPOCHS = 20          # Quantas vezes atualizar a rede com o mesmo batch
     
-UPDATE_TIMESTEPS = 2048 # Atualizar a cada X passos
+UPDATE_TIMESTEPS = 4096 # Atualizar a cada X passos
 
 
 
@@ -63,6 +63,8 @@ agent = PPOAgent(
     device=device,
     distribution_class=NormalDistribution,
     gamma=GAMMA,
+    ent_coef=0.01,
+    gae_lambda=0.95,
     eps_clip=EPS_CLIP,
     k_epochs=K_EPOCHS,
 )
@@ -70,10 +72,10 @@ agent = PPOAgent(
 try:
     
     agent.train(total_steps=NUM_EPISODES * UPDATE_TIMESTEPS, rollout_size=UPDATE_TIMESTEPS)
-    agent.save(f"{BASE_DIR}/model/Pendulum_PPO.pt")
+    agent.save(f"{BASE_DIR}/model/Pendulum_PPO_2.pt")
 
 except KeyboardInterrupt:
     print("\nTreinamento interrompido. Salvando modelo atual")
-    agent.save(f"{BASE_DIR}/model/Pendulum_PPO_interrompido.pt")
+    agent.save(f"{BASE_DIR}/model/Pendulum_PPO_2_interrompido.pt")
 
 
