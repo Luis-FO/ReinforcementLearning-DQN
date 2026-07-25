@@ -2,7 +2,7 @@ import torch
 import random
 import copy
 
-from core.replay_memory import ReplayMemory
+from core.buffers import ReplayMemory
 from core.exploration import ExplorationStrategy
 from core.off_policy_algorithm import OffPolicyAlgorithm
 
@@ -30,7 +30,7 @@ class DQNAgent(OffPolicyAlgorithm):
         super().__init__(env, self.device, warmup_steps=warmup_steps)
 
         self.policy_net = policy_net.to(self.device)
-        self.target_net = copy.deepcopy(policy_net).to(self.device)  # Cria uma nova instância da mesma classe
+        self.target_net = copy.deepcopy(policy_net).to(self.device)  
         self.target_net.eval()
 
         self.optimizer = optimizer
@@ -52,9 +52,7 @@ class DQNAgent(OffPolicyAlgorithm):
     def on_step(self):
         """Method called at the end of each step in the environment. Can be used to decay exploration strategies or other stateful components."""
         self.steps_done += 1
-        # if self.steps_done >= 20000:
-        #     self.exploration_strategy.reset()
-        #     self.steps_done = 0
+
     def on_train_start(self):
         """Method called at the beginning of the training loop. Can be used to reset exploration strategies or other stateful components."""
         self.exploration_strategy.reset()

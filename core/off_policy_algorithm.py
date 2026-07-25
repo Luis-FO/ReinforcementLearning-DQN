@@ -5,10 +5,8 @@ class OffPolicyAlgorithm(BaseAlgorithm):
     def __init__(self, env, device, warmup_steps=1000):
         super().__init__(env, device)
 
-        # TODO: How to force type of memory here?
         self.memory = None
         self.warmup_steps = warmup_steps
-
 
     def on_train_start(self):
         pass
@@ -34,28 +32,27 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         steps = 0
         episode = 0
         while steps < total_steps:
-            # Resetando o ambiente no início de cada episódio
             obs, _ = self.env.reset()
             done = False
-            total_reward = 0
-            # Loop até o episódio terminar ou atingir o limite de passos
+            total_reward = 0 
+            # Loop until the end of the episode or until total_steps is reached
             while not done and steps < total_steps:
                 if steps < self.warmup_steps:
                     action = self.env.action_space.sample()
                 else:
-                    # Selecionar ação com política epsilon-greedy.
+                    # Select action with epsilon-greedy policy.
                     action = self.select_action(obs, training = True)
                 
 
-                # Executar ação no ambiente
+                # Execute action in the environment
                 next_obs, reward, terminate, truncate, _ = self.env.step(action)
                 
                 done = terminate or truncate
 
-                # Armazenar a transição na memória de replay
+                # Store the transition in the replay memory
                 self._store_transition(obs, action, reward, next_obs, done)
 
-                # Atualizar o agente após cada passo se estiver fora do warmup
+                # Update the agent after each step if outside the warmup period
                 if steps >= self.warmup_steps:
                     self._update()
                 
@@ -64,13 +61,14 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                 steps+=1
                 self.on_step()
 
-            # Decair o valor de exploração se aplicável
+            # TODO: Change print to logging and include more info like loss, etc.
             if steps >= self.warmup_steps:
                 info = self.get_info()
-                print(f"Episódio {episode}: Recompensa = {total_reward:.2f} {info}")
+
+                print(f"Episode {episode}: Reward = {total_reward:.2f} {info}")
             else:
-                status = "Warm Up" if steps < self.warmup_steps else "Treinando"
-                print(f"Episódio {episode}: Recompensa {total_reward:.2f} | Status: {status} | Total Steps: {steps}")
+                status = "Warm Up" if steps < self.warmup_steps else "Training"
+                print(f"Episode {episode}: Reward {total_reward:.2f} | Status: {status} | Total Steps: {steps}")
 
             episode_rewards.append(total_reward)
             episode += 1
@@ -80,10 +78,10 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         if len(episode_rewards) >= 100:
             final_metric = sum(episode_rewards[-100:]) / 100
         else:
-            # Caso o treino seja muito curto ou interrompido
+            # Case the training is too short or interrupted
             final_metric = sum(episode_rewards) / len(episode_rewards) if len(episode_rewards) > 0 else -1000
 
-        print(f"Treino concluído. Métrica final (média de 100): {final_metric}")
+        print(f"Training completed. Final metric (average of 100): {final_metric}")
         return final_metric
         
     def test(self, num_episodes):
@@ -103,27 +101,14 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                 total_reward += reward
 
             episode_rewards.append(total_reward)
-            print(f"Teste Episódio {episode + 1}/{num_episodes}: Recompensa = {total_reward:.2f}")
+            print(f"Test Episode {episode + 1}/{num_episodes}: Reward = {total_reward:.2f}")
 
         self.env.close()
 
         mean_reward = np.mean(episode_rewards)
         std_reward = np.std(episode_rewards)
 
-        print(f"\n--- Teste Concluído ---")
-        print(f"Média: {mean_reward:.2f} +/- {std_reward:.2f}")
+        print(f"\n--- Test Completed ---")
+        print(f"Mean: {mean_reward:.2f} +/- {std_reward:.2f}")
 
         return mean_reward, std_reward
-
-    # # Check if I should put this method in the base class, since it's used in both on-policy and off-policy algorithms
-    # def _update(self):
-    #     pass
-
-    # def _soft_update(self, target_net, policy_net):
-    #     pass
-    
-    # def save(self):
-    #     pass
-
-    # def load(self):
-    #     pass

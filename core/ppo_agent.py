@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from core.on_policy_algorithm import OnPolicyAlgorithm
 from core.buffers import RolloutBuffer
 from core.networks import ActorCritic
-from core.distributions import BaseDistribution
+from core.distributions import BaseDistribution, CategoricalDistribution, NormalDistribution
 
 class PPOAgent(OnPolicyAlgorithm):
     
@@ -77,10 +77,14 @@ class PPOAgent(OnPolicyAlgorithm):
 
         self.policy_old.load_state_dict(self.policy.state_dict())
 
-
     def save(self, path):
-        torch.save(self.policy.state_dict(), path)
+        self.policy.save_checkpoint(path)
 
     def load(self, path):
-        self.policy.load_state_dict(torch.load(path, map_location=self.device))
+        # TODO: Move this to a more appropriate place, maybe in the ActorCritic class or a separate utility function
+        distribution_registry = {
+            'CategoricalDistribution': CategoricalDistribution,
+            'NormalDistribution': NormalDistribution,
+        }
+        self.policy = ActorCritic.load_checkpoint(path, distribution_registry, device=self.device)
         self.policy_old.load_state_dict(self.policy.state_dict())

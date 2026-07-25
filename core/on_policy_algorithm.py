@@ -9,13 +9,9 @@ class OnPolicyAlgorithm(BaseAlgorithm):
     def __init__(self, env, learning_rate, device):
         super().__init__(env, device)
 
-        self.rollout_buffer = None # TODO: Explicitly define type of rollout_buffer
+        self.rollout_buffer = None
 
-    def learn(self):
-        pass
     
-    # TODO: values ans log_probs should raise an error if not provided on PPO and be optional for other algorithms?
-
     def _store_transition(self, obs, action, reward, next_obs, done, values=None, log_probs=None):
         self.rollout_buffer.add(
             obs,
@@ -27,7 +23,6 @@ class OnPolicyAlgorithm(BaseAlgorithm):
             log_probs,
         )
 
-    # TODO: Use just fixed steps, and reset should be called when done is True
     def collect_rollouts(self, n_steps):
         obs, _ = self.env.reset()
         done = False
@@ -43,7 +38,7 @@ class OnPolicyAlgorithm(BaseAlgorithm):
             total_reward += reward
             done = terminate or truncate
 
-            # Armazenar a transição na memória usando apenas o terminal real
+            # Store the transition in the rollout buffer
             self._store_transition(obs, action, reward, next_obs, terminate, value, log_prob)
 
             obs = next_obs
@@ -67,8 +62,8 @@ class OnPolicyAlgorithm(BaseAlgorithm):
         while steps < total_steps:
             # Collect Rollouts
             n_steps, total_reward = self.collect_rollouts(n_steps=rollout_size)  # Adjust n_steps as needed
-            # Log rewards or other info if needed
-            print(f"Steps: {steps}, Total Reward: {total_reward}")
+            # TODO: Track episode rewards separately, not total reward per rollout 
+            print(f'Steps: {steps}, Total Reward: {total_reward}')
             # Update Policy
             self._update()
             steps += rollout_size

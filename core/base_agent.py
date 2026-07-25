@@ -1,8 +1,3 @@
-"""
-Base Agent class providing common functionality for all RL agents.
-This class defines the interface and shared methods for DQN, DDPG, TD3, and PPO agents.
-"""
-
 from abc import ABC, abstractmethod
 import torch
 import os
@@ -11,22 +6,11 @@ import os
 class BaseAgent(ABC):
     """
     Abstract base class for reinforcement learning agents.
-    
-    Subclasses should implement:
-    - select_action(): Choose action based on current policy
-    - update(): Update agent parameters based on experience
+
     """
     
     def __init__(self, device='cuda', gamma=0.99, tau=0.005, batch_size=128):
-        """
-        Initialize base agent.
-        
-        Args:
-            device: torch device (e.g., 'cuda' or 'cpu')
-            gamma: discount factor
-            tau: soft update coefficient for target networks
-            batch_size: batch size for training
-        """
+
         self.device = torch.device(device) if isinstance(device, str) else device
         self.gamma = gamma
         self.tau = tau

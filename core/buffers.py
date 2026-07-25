@@ -1,4 +1,7 @@
 import numpy as np
+from collections import deque
+from random import sample
+import numpy as np
 
 class RolloutBuffer:
     def __init__(self, size, gamma=0.99, gae_lambda=0.95):
@@ -17,7 +20,7 @@ class RolloutBuffer:
         self.is_terminals.append(done)
         self.values.append(values)
 
-    # TODO: atributers shoud be numpy arrays instead of lists
+    # TODO: attributes should be numpy arrays instead of lists
     def reset(self):
         self.states = []
         self.actions = []
@@ -74,3 +77,23 @@ class RolloutBuffer:
         self.advantages = (self.advantages - self.advantages.mean()) / (self.advantages.std() + 1e-8)
 
         return self.returns, self.advantages
+
+
+
+class ReplayMemory():
+    def __init__(self, size):
+        self.memory = deque([], maxlen=size)
+
+    def push(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward, next_state, done))
+
+    def sample(self, size):
+        samples = sample(self.memory, size)
+        states, actions, rewards, next_states, dones = zip(*samples)
+        return np.array(states), np.array(actions), np.array(rewards), np.array(next_states), np.array(dones)
+    
+    def __len__(self):
+        return len(self.memory)
+    
+    def __str__(self):
+        return f"{self.memory}"

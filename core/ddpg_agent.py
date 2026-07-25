@@ -3,7 +3,7 @@ import torch
 import numpy as np
 
 from core.networks import Actor, Critic
-from core.replay_memory import ReplayMemory
+from core.buffers import ReplayMemory
 from core.exploration import ExplorationStrategy
 from core.off_policy_algorithm import OffPolicyAlgorithm
 

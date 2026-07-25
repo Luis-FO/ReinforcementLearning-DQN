@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
+# TODO: Review need for some of these classes
 
 class ExplorationStrategy(ABC):
     """
@@ -42,7 +43,6 @@ class FixedEpsilonGreedy(ExplorationStrategy):
 
 
 class DecayingExplorationStrategy(ExplorationStrategy):
-    """Interface segregada: Adiciona comportamento de decaimento e reinício."""
     @abstractmethod
     def decay(self):
         pass
@@ -79,7 +79,7 @@ class GaussianDecayNoise(DecayingExplorationStrategy):
     def reset(self):
         self.current_std = self.start_std
 
-# New class that decay epsilon Greedy based on steps, not episodes, and has a reset method to restart the decay process.
+
 class LinearDecayEpsilonGreedy(DecayingExplorationStrategy):
     def __init__(self, start=1.0, end=0.05, decay_steps=10000):
         self.start = start
