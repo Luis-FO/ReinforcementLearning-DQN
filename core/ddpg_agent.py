@@ -3,23 +3,30 @@ import torch
 import numpy as np
 
 from core.networks import Actor, Critic
-from core.replay_memory import ReplayMemory
+from core.buffers import ReplayMemory
 from core.exploration import ExplorationStrategy
+from core.off_policy_algorithm import OffPolicyAlgorithm
 
-class DDPGAgent:
-    def __init__(self, actor, critic, actor_optimizer, critic_optimizer,
+class DDPGAgent(OffPolicyAlgorithm):
+    def __init__(self, env, actor, critic, actor_optimizer, critic_optimizer,
                  criterion, exploration_strategy: ExplorationStrategy,
                  memory_capacity=1000000, gamma=0.99, tau=0.005, 
                  batch_size=128, device='cuda'):
 
-        self.device = device
+        if isinstance(device, str):
+            if device == 'cuda' and not torch.cuda.is_available():
+                device = 'cpu'
+            device = torch.device(device)
 
-        self.actor = actor
-        self.actor_target = copy.deepcopy(actor)
+        self.device = device
+        super().__init__(env, self.device, warmup_steps=0)
+
+        self.actor = actor.to(self.device)
+        self.actor_target = copy.deepcopy(self.actor).to(self.device)
         self.actor_optimizer = actor_optimizer
         
-        self.critic = critic
-        self.critic_target = copy.deepcopy(critic)
+        self.critic = critic.to(self.device)
+        self.critic_target = copy.deepcopy(self.critic).to(self.device)
         self.critic_optimizer = critic_optimizer
 
         self.criterion = criterion
@@ -50,10 +57,19 @@ class DDPGAgent:
         # Garante que a ação esteja dentro dos limites válidos
         return np.clip(action, -self.actor.max_action, self.actor.max_action)
 
-    def update(self):
+    def get_info(self):
+        return {
+            "exploration": self.exploration_strategy.get_value()
+        }
+
+    def on_train_start(self):
+        self.exploration_strategy.reset()
+
+    def _update(self):
         if len(self.memory) < self.batch_size:
             return
 
+        self.exploration_strategy.decay()  # Decai o valor de exploração a cada atualização
         # Pega uma amostra de transições da memória de replay
         batch = self.memory.sample(self.batch_size)
         state_batch, action_batch, reward_batch, next_states, dones = batch

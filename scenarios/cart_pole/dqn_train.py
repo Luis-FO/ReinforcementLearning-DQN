@@ -7,32 +7,30 @@ from gymnasium.wrappers import RecordVideo
 from pathlib import Path
 
 from core.dqn_agent import DQNAgent
-from core.dqn_model import DQN
-from core.trainer import Trainer
+from core.networks import DQN
 from core.logtrigger import segmented_limit_trigger
 from core.info_overlay import InfoOverlay
-from core.exploration import EpsilonGreedyStrategy
-from mountain_car_reward_wrapper import MountainCarRewardWrapper
+from core.exploration import FixedEpsilonGreedy, ExponentialDecayEpsilonGreedy
 
-VIDEO_DIR = "VideosMountainCar"
 # Diretório onde o script está localizado
 BASE_DIR = Path(__file__).resolve().parent
 # Cria diretórios para salvar modelos e vídeos, se não existirem
 (BASE_DIR / "model").mkdir(parents=True, exist_ok=True)
-# Cria diretório para vídeos com base no nome definido em VIDEO_DIR
-(BASE_DIR / VIDEO_DIR).mkdir(parents=True, exist_ok=True)
+(BASE_DIR / "VideosCartPole").mkdir(parents=True, exist_ok=True)
 
-ENV_NAME = 'MountainCar-v0' 
-LR = 0.0005
+
+ENV_NAME = 'CartPole-v1' 
+LR = 0.0001
 MEMORY_CAPACITY = 100000
 BATCH_SIZE = 64
 GAMMA = 0.95
 TAU = 0.005
-NUM_EPISODES = 600
+NUM_EPISODES = 1500
+TOTAL_STEPS = NUM_EPISODES * 200  # CartPole-v1 tem um limite de 500 passos por episódio, mas vamos usar 200 para acelerar o treinamento.
 
 EPS_START = 1.0
 EPS_END = 0.005
-EPS_DECAY = 0.98
+# EPS_DECAY = 0.98
 
 device = torch.device(
     "cuda" if torch.cuda.is_available() else
@@ -49,9 +47,20 @@ policy_net = DQN(n_observations, n_actions)
 
 policy_net_optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
 policy_net_criterion = nn.SmoothL1Loss()
-exploration_strategy = EpsilonGreedyStrategy(EPS_START, EPS_END, EPS_DECAY)
+exploration_strategy = ExponentialDecayEpsilonGreedy(start=EPS_START, end=EPS_END, decay_steps=10000)
+# exploration_strategy = FixedEpsilonGreedy(epsilon=EPS_END)
 
-agent = DQNAgent(policy_net=policy_net, 
+format_type = "stories"  # 'stories'
+name_prefix = "CartPole-dqn_train"
+
+# Setup environment with InfoOverlay and RecordVideo
+dqn_env = gym.make(ENV_NAME, render_mode="rgb_array")
+# Uncomment the following lines to enable InfoOverlay and video recording
+# dqn_env = InfoOverlay(dqn_env, format_type = format_type)
+# dqn_env = RecordVideo(dqn_env, video_folder=f"{BASE_DIR}/VideosCartPole", name_prefix="CartPole-dqn_train_v1", episode_trigger=segmented_limit_trigger)
+
+agent = DQNAgent(env = dqn_env, 
+                 policy_net=policy_net, 
                  optimizer=policy_net_optimizer, 
                  criterion=policy_net_criterion,
                  memory_capacity=MEMORY_CAPACITY,
@@ -61,29 +70,15 @@ agent = DQNAgent(policy_net=policy_net,
                  batch_size=BATCH_SIZE,
                  device=device)
 
-format_type = "stories"  # 'stories', 'feed', 'portrait', or None
-name_prefix = "Mountain-Car-dqn_train"
-
-# Setup environment with InfoOverlay and RecordVideo
-dqn_env = gym.make(ENV_NAME, render_mode="rgb_array")
-# dqn_env.max_episode_steps = 500  # Aumentar o limite de passos por episódio
-dqn_env = InfoOverlay(dqn_env, format_type = format_type)
-dqn_env = RecordVideo(dqn_env, video_folder=f"{BASE_DIR}/{VIDEO_DIR}", name_prefix=name_prefix, episode_trigger=segmented_limit_trigger)
-dqn_env = MountainCarRewardWrapper(dqn_env)
-
-trainer = Trainer(env=dqn_env, agent=agent)
 
 try:
     
-    trainer.train(num_episodes=NUM_EPISODES) 
-
-    agent.save(f"{BASE_DIR}/model/Mountain_Car_dqn.pt")
-
-    dqn_env.close()
+    agent.train(total_steps=TOTAL_STEPS)
+    agent.save(f"{BASE_DIR}/model/CartPole_dqn.pt")
 
 except KeyboardInterrupt:
     print("\nTreinamento interrompido. Salvando modelo atual")
-    agent.save(f"{BASE_DIR}/model/Mountain_Car_interrompido.pt")
+    agent.save(f"{BASE_DIR}/model/CartPole_interrompido.pt")
+
+finally:
     dqn_env.close()
-
-

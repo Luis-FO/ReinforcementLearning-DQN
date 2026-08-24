@@ -6,7 +6,6 @@ import gymnasium as gym
 from gymnasium.wrappers import RecordVideo
 from pathlib import Path
 
-from core.tester import Tester
 from core.info_overlay import InfoOverlay
 from core.ddpg_agent import DDPGAgent
 from core.networks import Actor, Critic
@@ -61,16 +60,6 @@ noise_strategy = GaussianDecayNoise(start_std=START_STD, min_std=MIN_STD, decay_
 # Critério de perda para o critic | O critério do actor é implícito na maximização do valor Q
 criterion = nn.MSELoss()
 
-agent = DDPGAgent(
-        actor=actor,
-        critic=critic,
-        actor_optimizer=actor_optim,
-        critic_optimizer=critic_optim,
-        criterion=criterion,
-        exploration_strategy=noise_strategy
-)
-
-
 format_type = "stories"  # 'stories'
 name_prefix = "Pendulum-ddpg_test"
 
@@ -82,10 +71,19 @@ env = gym.make(ENV_NAME, render_mode="rgb_array")
 env = InfoOverlay(env, format_type = format_type)
 env = RecordVideo(env, video_folder=f"{BASE_DIR}/VideosPendulumV2_test", name_prefix="Pendulum-ddpg_test_v1", episode_trigger=record_trigger)
 
-tester = Tester(env=env, agent=agent)
+agent = DDPGAgent(
+        env=env,
+        actor=actor,
+        critic=critic,
+        actor_optimizer=actor_optim,
+        critic_optimizer=critic_optim,
+        criterion=criterion,
+        exploration_strategy=noise_strategy,
+        device=device
+)
 
 try:
-    tester.test(num_episodes=NUM_EPISODES)
+    agent.test(num_episodes=6)
 
 except KeyboardInterrupt:
     print("\nTeste interrompido.")

@@ -9,15 +9,26 @@ class Trainer():
         self.steps = 0 
         self.warmup_steps = warmup_steps
     
-    def train(self, num_episodes):
+    def train(self, total_steps):
         episode_rewards = []
+        episode = 0
 
         # TODO: Evitar o uso de hasattr, talvez com um padrão Strategy mais robusto.
         if hasattr(self.agent.exploration_strategy, 'reset'):
             self.agent.exploration_strategy.reset()
 
-        # Training loop
-        for episode in range(num_episodes):
+        # Training loop based on total steps
+        while self.steps < total_steps:
+            episode += 1
+            # Resetando o ambiente no início de cada episódio
+            obs, _ = self.env.reset()
+            done = False
+            total_reward = 0
+            episode_steps = 0
+            # Loop até o episódio terminar
+            while not done:
+                if self.steps >= total_steps:
+                    break
             # Resetando o ambiente no início de cada episódio
             obs, _ = self.env.reset()
             done = False
@@ -47,18 +58,19 @@ class Trainer():
                 total_reward += reward
                 self.steps+=1
 
-            # Decair o valor de exploração se aplicável
-            if hasattr(self.agent.exploration_strategy, 'decay') and self.steps >= self.warmup_steps:
-                exploration_value = self.agent.exploration_strategy.decay()
+                # Decair o valor de exploração se aplicável (per step)
+                if hasattr(self.agent.exploration_strategy, 'decay') and self.steps >= self.warmup_steps:
+                    self.agent.exploration_strategy.decay()
+            
+            # Print status per episode
+            if hasattr(self.agent.exploration_strategy, 'get_value') and self.steps >= self.warmup_steps:
+                exploration_value = self.agent.exploration_strategy.get_value()
                 print(f"Episódio {episode}: Recompensa = {total_reward:.2f}, Exploration = {exploration_value:.4f}")
             else:
                 status = "Warm Up" if self.steps < self.warmup_steps else "Treinando"
                 print(f"Episódio {episode}: Recompensa {total_reward:.2f} | Status: {status} | Total Steps: {self.steps}")
 
             episode_rewards.append(total_reward)
-            
-
-        self.env.close()
         
         if len(episode_rewards) >= 100:
             final_metric = sum(episode_rewards[-100:]) / 100

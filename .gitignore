@@ -19,8 +19,6 @@ rl_output/*
 eval_output/reconstructions.png
 checkpoints/config.json
 checkpoints/training_curves.png
-core/base_agent.py
-core/ppo_agent.py
 scenarios/CarRacing/main_claude.py
 scenarios/CarRacing/main_claude2.py
 scenarios/CarRacing/main_dqn.py
