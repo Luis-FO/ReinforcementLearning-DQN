@@ -43,40 +43,42 @@ class RolloutBuffer:
             np.array(self.logprobs)
         )
     
+    def _compute_returns_and_advantage(self, rewards, values, dones, last_value):
+        n = len(rewards)
+        advantages = np.zeros(n, dtype=np.float32)
+        gae = 0.0
+        next_value = last_value
+        for step in reversed(range(n)):
+            delta = rewards[step] + self.gamma * (1 - dones[step]) * next_value - values[step]
+            gae = delta + self.gamma * self.gae_lambda * (1 - dones[step]) * gae
+            advantages[step] = gae
+            next_value = values[step]
+        returns = advantages + values
+        self.returns = returns
+        self.advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        return self.returns, self.advantages
+    
     # def _compute_returns_and_advantage(self, rewards, values, dones, last_value):
     #     returns = []
     #     advantages = []
     #     gae = 0
+    #     next_value = last_value  # V(s_T) — bootstrap do fim do rollout
+
     #     for step in reversed(range(len(rewards))):
-    #         delta = rewards[step] + self.gamma * (1 - dones[step]) * last_value - values[step]
+    #         # next_value aqui é sempre V(s_{t+1}), correto
+    #         delta = rewards[step] + self.gamma * (1 - dones[step]) * next_value - values[step]
     #         gae = delta + self.gamma * self.gae_lambda * (1 - dones[step]) * gae
     #         advantages.insert(0, gae)
     #         returns.insert(0, gae + values[step])
-    #         last_value = values[step]
-    #     self.returns, self.advantages = np.array(returns), np.array(advantages)
+    #         next_value = values[step]  # para o próximo step (t-1), o "próximo" é o atual (t)
+
+    #     self.returns = np.array(returns)
+    #     self.advantages = np.array(advantages)
+
+    #     # Normalização das vantagens — essencial para estabilidade do PPO
+    #     self.advantages = (self.advantages - self.advantages.mean()) / (self.advantages.std() + 1e-8)
+
     #     return self.returns, self.advantages
-    
-    def _compute_returns_and_advantage(self, rewards, values, dones, last_value):
-        returns = []
-        advantages = []
-        gae = 0
-        next_value = last_value  # V(s_T) — bootstrap do fim do rollout
-
-        for step in reversed(range(len(rewards))):
-            # next_value aqui é sempre V(s_{t+1}), correto
-            delta = rewards[step] + self.gamma * (1 - dones[step]) * next_value - values[step]
-            gae = delta + self.gamma * self.gae_lambda * (1 - dones[step]) * gae
-            advantages.insert(0, gae)
-            returns.insert(0, gae + values[step])
-            next_value = values[step]  # para o próximo step (t-1), o "próximo" é o atual (t)
-
-        self.returns = np.array(returns)
-        self.advantages = np.array(advantages)
-
-        # Normalização das vantagens — essencial para estabilidade do PPO
-        self.advantages = (self.advantages - self.advantages.mean()) / (self.advantages.std() + 1e-8)
-
-        return self.returns, self.advantages
 
 
 
